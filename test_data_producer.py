@@ -2,9 +2,7 @@ import random
 import re
 import os
 import time
-import threading
-from multiprocessing import pool
-
+import multiprocessing
 
 class Base_Implementation:
 
@@ -123,6 +121,8 @@ class Learn_Engine:
 
 
 
+
+
     @staticmethod
     def get_random_substring(substring_len, num=200):
         substrings = []
@@ -193,42 +193,48 @@ class Learn_Engine:
 
 
 
-naive = Base_Implementation()
-learn = Learn_Engine()
+if __name__ == '__main__':
+    naive = Base_Implementation()
+    learn = Learn_Engine()
 
-naive.base_percentages_generate("./imp/package_no_comments.txt")
+    naive.base_percentages_generate("./imp/package_no_comments.txt")
 
-print (naive.naive_implementation("Blank","0603"))
+    print (naive.naive_implementation("Blank","0603"))
 
-strt_time = time.time()
-print ("Starting process at %d" % strt_time)
-
-
-substrings = []
-for _ in range(0,8):
-    substrings.append(Learn_Engine.get_random_substring(5, num=1000))
+    strt_time = time.time()
+    print ("Starting process at %d" % strt_time)
 
 
-print ("8000 substrings identified at %d" % time.time())
+    substrings = []
+    for _ in range(0,8):
+        substrings.append(Learn_Engine.get_random_substring(5, num=1000))
 
 
-#    Learn_Engine.find_substring_occurrence(entry,learn.substrings)
+    print ("%d threads identified substrings at %d" % (len(substrings), time.time()))
 
 
-threads = []
-for entry in substrings:
-    t = threading.Thread(target=Learn_Engine.find_substring_occurrence, args=(entry,learn.substrings))
-    threads.append(t)
+    #    Learn_Engine.find_substring_occurrence(entry,learn.substrings)
 
-for t in threads:
-    t.start()
 
-for t in threads:
-    t.join()
+    processes = []
+    queues = []
+    q = multiprocessing.Queue()
 
-finish_time = time.time()
-#print learn.substrings
-#print ("Substrings learned at %d" % finish_time)
-print ("Total time - %d" % (finish_time - strt_time))
-print len(learn.substrings)
-#print naive.synonyms
+    for entry in substrings:
+        p = multiprocessing.Process(target=Learn_Engine.find_substring_occurrence, args=(entry,learn.substrings))
+        processes.append(p)
+
+    for p in processes:
+        p.start()
+
+    for p in processes:
+        p.join()
+
+
+    finish_time = time.time()
+    print learn.substrings
+    #print ("Substrings learned at %d" % finish_time)
+    print ("Total time - %d" % (finish_time - strt_time))
+    print len(learn.substrings)
+    print len(q.get())
+    #print naive.synonyms
