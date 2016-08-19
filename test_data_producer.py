@@ -2,17 +2,18 @@ import random
 import re
 import os
 import time
+import ast
 from pathos.multiprocessing import ProcessingPool as Pool
 
 
-from contextlib import contextmanager
+#from contextlib import contextmanager
 
-@contextmanager
-def terminating(thing):
-    try:
-        yield thing
-    finally:
-        thing.terminate()
+#@contextmanager
+#def terminating(thing):
+#    try:
+#        yield thing
+#    finally:
+#        thing.terminate()
 
 
 class Base_Implementation:
@@ -137,6 +138,7 @@ def find_substring_occurrence_nocheck(substrings):
         megabytes = f.read()
         for entry in substrings:
             if entry in GLOBAL_SUBSTRINGS:
+                print ("Walkover")
                 continue
             p = re.compile(entry)
             result = p.findall(megabytes)
@@ -144,18 +146,20 @@ def find_substring_occurrence_nocheck(substrings):
 
     return GLOBAL_SUBSTRINGS
 
-def find_substring_occurrence(substrings,output):
+def find_substring_occurrence(substrings,existing_keys):
     GLOBAL_SUBSTRINGS = {}
+    walkover = 0
     filename = "./imp/learn_strings_only.txt"
     with file(filename, "rb") as f:
         megabytes = f.read()
         for entry in substrings:
-            if entry in output:
+            if entry in existing_keys:
+                walkover += 1
                 continue
             p = re.compile(entry)
             result = p.findall(megabytes)
             GLOBAL_SUBSTRINGS[entry] = len(result)
-
+   # print ("Walkovers: %d" % walkover)
     return GLOBAL_SUBSTRINGS
 
 
@@ -222,6 +226,52 @@ def get_random_substring(substring_len, num=200):
                 substrings.append(substring)
     return substrings
 
+def get_substring_dict(substrings, existing_keys):
+    filename = "./imp/learn_uniq.txt"
+    substring_dict_list = {}
+    walkover = 0
+    with file(filename, "rb") as f:
+        megabytes = f.read()
+        for entry in substrings:
+            if entry in existing_keys:
+                walkover += 1
+                continue
+            entry_dict = {}
+            entry_corrected = entry.strip("<>")
+            if entry[0] == '<':
+                pattern = re.compile('(' + entry_corrected + ')\w* (\w+)\n')
+            elif entry[-1] == '>':
+                pattern = re.compile('\w*(' + entry_corrected + ') (\w+)\n')
+            else:
+                pattern = re.compile('\w*(' + entry_corrected + ')\w* (\w+)\n')
+            result = pattern.findall(megabytes)
+            #print (entry_corrected,result)
+            for match in result:
+                object_group = match[1]
+                if object_group in entry_dict:
+                    entry_dict[object_group] += 1
+                else:
+                    entry_dict[object_group] = 1
+            substring_dict_list[entry] = entry_dict
+    print ("Walkovers: %d" % walkover)
+    return substring_dict_list
+
+
+def split_list(list_in, num):
+    ret_list = []
+    if num <= 1:
+        return list_in
+    split_val = len(list_in) / (num-1)
+#    print split_val
+    for i in range(num):
+        ret_list.append(list_in[(i*split_val):((i+1)*split_val)])
+
+#    print("In split list %d, %d, %d " % (num, split_val, ((num) * split_val)))
+    return ret_list
+
+def generate_substring_input():
+    pass
+
 if __name__ == '__main__':
     naive = Base_Implementation()
     learn = Learn_Engine()
@@ -261,21 +311,43 @@ if __name__ == '__main__':
     total_imported = len(outputs)
     print ("%d substrings loaded at %d" % (total_imported, time.time()))
 
-    with terminating(Pool(processes=8)) as pool:
-        output_array = []
-        for _ in range(0,len(substrings)):
-            output_array.append(outputs)
-        for entry in pool.map(find_substring_occurrence,substrings,output_array):
-            outputs = dict(outputs, **entry)
+    pool = Pool(processes=8)
 
-    finish_time = time.time()
-    print ("%d substrings learned at %d" % (len(outputs)-total_imported, finish_time))
-    print ("Total time - %d" % (finish_time - strt_time))
+    # with terminating(Pool(processes=8)) as pool:
+    #     output_array = []
+    #     for _ in range(0,len(substrings)):
+    #         output_array.append(outputs)
+    #     for entry in pool.map(find_substring_occurrence,substrings,output_array):
+    #         outputs = dict(outputs, **entry)
+
+#    with terminating(Pool(processes=8)) as pool:
+    key_array = []
+    for _ in range(0,len(substrings)):
+        key_array.append(outputs.keys())
+    for entry in pool.map(find_substring_occurrence,substrings,key_array):
+        outputs = dict(outputs, **entry)
+
+    learn_finish_time = time.time()
+    print ("%d substrings learned at %d" % (len(outputs) - total_imported, learn_finish_time))
+    print ("Time elapsed - %d" % (learn_finish_time - strt_time))
 
     with file(frequency_filename, "w") as f:
         for key in outputs:
             f.write(key + " " + str(outputs[key]) + "\n")
 
+
+    substring_frequency_savename = "./runs/substring_len_" + str(substring_length) + "_dictionary.txt"
+    substring_frequency_dict = {}
+
+    if os.path.isfile(substring_frequency_savename):
+        with file(substring_frequency_savename, "r") as f:
+            pattern = re.compile('(\w+) ([^\n]+)\n')
+            for line in f:
+                m = pattern.match(line)
+                if m:
+                    substring_frequency_dict[m.group(1)] = ast.literal_eval(m.group(2))
+
+    print ("Length of substring load frequency - %d" % len(substring_frequency_dict))
 
     counts = {}
     for key in outputs:
@@ -289,7 +361,7 @@ if __name__ == '__main__':
 
     total = 0
 
-    sweet_spot = 0.99
+    sweet_spot = 0.99995
     target = int (float(len(outputs)) * sweet_spot)
     list_targets = []
     for key in counts:
@@ -301,11 +373,43 @@ if __name__ == '__main__':
 
     check_substring_targets = []
 
+
+
     for key in outputs:
         if int(outputs[key]) >= list_targets[0]:
             check_substring_targets.append(key)
 
-    print check_substring_targets
+    print ("%d substrings targeted for deep learning" %len(check_substring_targets))
+
+    ck_list = split_list(check_substring_targets, 8)
+
+#    output = []
+#    output = get_substring_dict(check_substring_targets)
+
+
+#    print ck_list
+
+
+    key_array = []
+    for _ in range(0, len(substrings)):
+        key_array.append(substring_frequency_dict.keys())
+    for entry in pool.map(get_substring_dict, ck_list, key_array):
+        substring_frequency_dict = dict(substring_frequency_dict, **entry)
+
+    substring_dict_time = time.time()
+#    print substring_frequency_dict
+
+    print ("Learned %d substrings in - %d" % (len(substring_frequency_dict), (substring_dict_time - learn_finish_time)))
+
+    with file(substring_frequency_savename, "w") as f:
+        for key in substring_frequency_dict:
+            f.write(key + " " + str(substring_frequency_dict[key]) + "\n")
+
+    finish_time = time.time()
+    print ("Wrote %d substrings to disk in - %d" % (len(substring_frequency_dict), (finish_time - substring_dict_time)))
+
+    print ("Total time - %d" % (finish_time - strt_time))
+
 
 
 
