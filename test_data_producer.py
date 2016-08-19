@@ -3,6 +3,18 @@ import re
 import os
 import time
 import multiprocessing
+from pathos.multiprocessing import ProcessingPool as Pool
+
+
+from contextlib import contextmanager
+
+@contextmanager
+def terminating(thing):
+    try:
+        yield thing
+    finally:
+        thing.terminate()
+
 
 class Base_Implementation:
 
@@ -107,17 +119,7 @@ class Learn_Engine:
             for entry in test_data:
                 f.write(entry)
 
-    @staticmethod
-    def find_substring_occurrence(substrings, substring_hash):
-        filename = "./imp/learn_strings_only.txt"
-        with file(filename, "rb") as f:
-            megabytes = f.read()
-            for entry in substrings:
-                if entry in substring_hash:
-                    continue
-                p = re.compile(entry)
-                result = p.findall(megabytes)
-                substring_hash[entry] = len(result)
+
 
 
 
@@ -188,8 +190,21 @@ class Learn_Engine:
         return substrings
 
 
+#GLOBAL_SUBSTRINGS = {}
 
+def find_substring_occurrence(substrings):
+    GLOBAL_SUBSTRINGS = {}
+    filename = "./imp/learn_strings_only.txt"
+    with file(filename, "rb") as f:
+        megabytes = f.read()
+        for entry in substrings:
+            if entry in GLOBAL_SUBSTRINGS:
+                continue
+            p = re.compile(entry)
+            result = p.findall(megabytes)
+            GLOBAL_SUBSTRINGS[entry] = len(result)
 
+    return GLOBAL_SUBSTRINGS
 
 
 
@@ -206,35 +221,28 @@ if __name__ == '__main__':
 
 
     substrings = []
-    for _ in range(0,8):
-        substrings.append(Learn_Engine.get_random_substring(5, num=1000))
+    for _ in range(0,16):
+        substrings.append(Learn_Engine.get_random_substring(5, num=10000))
 
+    total_len = 0
+    for entry in substrings:
+        total_len += len(entry)
 
-    print ("%d threads identified substrings at %d" % (len(substrings), time.time()))
-
-
-    #    Learn_Engine.find_substring_occurrence(entry,learn.substrings)
-
+    print ("%d substrings identified at %d" % (total_len, time.time()))
 
     processes = []
-    queues = []
-    q = multiprocessing.Queue()
+    outputs = {}
 
-    for entry in substrings:
-        p = multiprocessing.Process(target=Learn_Engine.find_substring_occurrence, args=(entry,learn.substrings))
-        processes.append(p)
 
-    for p in processes:
-        p.start()
+    with terminating(Pool(processes=8)) as pool:
+        for entry in pool.map(find_substring_occurrence,substrings):
+            outputs = dict(outputs, **entry)
 
-    for p in processes:
-        p.join()
+
+
+
 
 
     finish_time = time.time()
-    print learn.substrings
-    #print ("Substrings learned at %d" % finish_time)
+    print ("%d Substrings learned at %d" % (len(outputs), finish_time))
     print ("Total time - %d" % (finish_time - strt_time))
-    print len(learn.substrings)
-    print len(q.get())
-    #print naive.synonyms
