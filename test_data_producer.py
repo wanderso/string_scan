@@ -246,3 +246,5 @@ if __name__ == '__main__':
     finish_time = time.time()
     print ("%d Substrings learned at %d" % (len(outputs), finish_time))
     print ("Total time - %d" % (finish_time - strt_time))
+
+
