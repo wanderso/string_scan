@@ -233,10 +233,13 @@ if __name__ == '__main__':
     strt_time = time.time()
     print ("Starting process at %d" % strt_time)
 
-
+    substring_length = 5
     substrings = []
+
+    frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
+
     for _ in range(0,8):
-        substrings.append(get_random_substring(5, num=1000))
+        substrings.append(get_random_substring(substring_length, num=1000))
 
     total_len = 0
     for entry in substrings:
@@ -247,20 +250,18 @@ if __name__ == '__main__':
     processes = []
     outputs = {}
 
-    #load substring frequency
-    with file("./runs/substring_frequency.txt", "r") as f:
-        pattern = re.compile('(\w+) (\d+)\n')
-        for line in f:
-            m = pattern.match(line)
-            if m:
-                outputs[m.group(1)] = int(m.group(2))
+    if os.path.isfile(frequency_filename):
+        with file(frequency_filename, "r") as f:
+            pattern = re.compile('(\w+) (\d+)\n')
+            for line in f:
+                m = pattern.match(line)
+                if m:
+                    outputs[m.group(1)] = int(m.group(2))
 
     total_imported = len(outputs)
     print ("%d substrings loaded at %d" % (total_imported, time.time()))
 
-
     with terminating(Pool(processes=8)) as pool:
-#        print outputs
         output_array = []
         for _ in range(0,len(substrings)):
             output_array.append(outputs)
@@ -271,9 +272,42 @@ if __name__ == '__main__':
     print ("%d substrings learned at %d" % (len(outputs)-total_imported, finish_time))
     print ("Total time - %d" % (finish_time - strt_time))
 
-    with file("./runs/substring_frequency.txt", "w") as f:
+    with file(frequency_filename, "w") as f:
         for key in outputs:
             f.write(key + " " + str(outputs[key]) + "\n")
+
+
+    counts = {}
+    for key in outputs:
+        if outputs[key] in counts:
+            counts[outputs[key]] += 1
+        else:
+            counts[outputs[key]] = 1
+
+    #print counts
+
+
+    total = 0
+
+    sweet_spot = 0.99
+    target = int (float(len(outputs)) * sweet_spot)
+    list_targets = []
+    for key in counts:
+        total += counts[key]
+        if total > target:
+            list_targets.append(key)
+
+    print ("Targeting all entries >= %d" % list_targets[0])
+
+    check_substring_targets = []
+
+    for key in outputs:
+        if int(outputs[key]) >= list_targets[0]:
+            check_substring_targets.append(key)
+
+    print check_substring_targets
+
+
 
 
 
