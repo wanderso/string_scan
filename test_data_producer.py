@@ -2,7 +2,6 @@ import random
 import re
 import os
 import time
-import multiprocessing
 from pathos.multiprocessing import ProcessingPool as Pool
 
 
@@ -125,74 +124,13 @@ class Learn_Engine:
 
 
 
-    @staticmethod
-    def get_random_substring(substring_len, num=200):
-        substrings = []
-        filename = "./imp/learn_strings_only.txt"
-        random.seed()
-        with file(filename, "rb") as f:
-            dist = os.path.getsize(filename)
-            for _ in range(0,num):
-                current_len = 1
-                ran_point = random.randrange(dist)
-                f.seek(ran_point, 0)
-                value = f.read(1)
-
-#                print (value)
-#                print (f.read(10))
-
-                if value == " ":
-                    continue
-                else:
-                    #print ("%s" % value)
-                    left_char = value
-                    right_char = value
-                    left_point = ran_point
-                    right_point = ran_point
-                    while current_len < substring_len:
-                        current_len += 1
-                        direction = 0
-                        move_right = (left_char  == '<')
-                        move_left = (right_char == '>')
-                       # print (left_char,right_char,move_left,move_right)
-
-                        if move_left and move_right:
-                            direction = 0
-                       #     print ("String blanked")
-                        elif move_left:
-                            direction = -1
-#                            print ("Must move left")
-                        elif move_right:
-                            direction = 1
-#                            print ("Must move right")
-                        else:
-                            direction = random.randrange(-1,2,2) # randomnly selects -1 or 1
 
 
-                        if direction == 1:
-#                            print ("Move right")
-                            right_point += 1
-                            f.seek(right_point,0)
-                            right_char = f.read(1)
-#                            print ("right_char " + right_char)
-                        elif direction == -1:
-#                            print ("Move left")
-                            left_point -= 1
-                            f.seek(left_point,0)
-                            left_char = f.read(1)
-#                            print ("left_char " + left_char)
-                        else:
-                            current_len -= 1
-                            break
-                    f.seek(left_point,0)
-                    substring = f.read(current_len)
-                    substrings.append(substring)
-        return substrings
 
 
 #GLOBAL_SUBSTRINGS = {}
 
-def find_substring_occurrence(substrings):
+def find_substring_occurrence_nocheck(substrings):
     GLOBAL_SUBSTRINGS = {}
     filename = "./imp/learn_strings_only.txt"
     with file(filename, "rb") as f:
@@ -206,7 +144,83 @@ def find_substring_occurrence(substrings):
 
     return GLOBAL_SUBSTRINGS
 
+def find_substring_occurrence(substrings,output):
+    GLOBAL_SUBSTRINGS = {}
+    filename = "./imp/learn_strings_only.txt"
+    with file(filename, "rb") as f:
+        megabytes = f.read()
+        for entry in substrings:
+            if entry in output:
+                continue
+            p = re.compile(entry)
+            result = p.findall(megabytes)
+            GLOBAL_SUBSTRINGS[entry] = len(result)
 
+    return GLOBAL_SUBSTRINGS
+
+
+def get_random_substring(substring_len, num=200):
+    substrings = []
+    filename = "./imp/learn_strings_only.txt"
+    random.seed()
+    with file(filename, "rb") as f:
+        dist = os.path.getsize(filename)
+        for _ in range(0,num):
+            current_len = 1
+            ran_point = random.randrange(dist)
+            f.seek(ran_point, 0)
+            value = f.read(1)
+
+#                print (value)
+#                print (f.read(10))
+
+            if value == " ":
+                continue
+            else:
+                #print ("%s" % value)
+                left_char = value
+                right_char = value
+                left_point = ran_point
+                right_point = ran_point
+                while current_len < substring_len:
+                    current_len += 1
+                    direction = 0
+                    move_right = (left_char  == '<')
+                    move_left = (right_char == '>')
+                   # print (left_char,right_char,move_left,move_right)
+
+                    if move_left and move_right:
+                        direction = 0
+                   #     print ("String blanked")
+                    elif move_left:
+                        direction = -1
+#                            print ("Must move left")
+                    elif move_right:
+                        direction = 1
+#                            print ("Must move right")
+                    else:
+                        direction = random.randrange(-1,2,2) # randomnly selects -1 or 1
+
+
+                    if direction == 1:
+#                            print ("Move right")
+                        right_point += 1
+                        f.seek(right_point,0)
+                        right_char = f.read(1)
+#                            print ("right_char " + right_char)
+                    elif direction == -1:
+#                            print ("Move left")
+                        left_point -= 1
+                        f.seek(left_point,0)
+                        left_char = f.read(1)
+#                            print ("left_char " + left_char)
+                    else:
+                        current_len -= 1
+                        break
+                f.seek(left_point,0)
+                substring = f.read(current_len)
+                substrings.append(substring)
+    return substrings
 
 if __name__ == '__main__':
     naive = Base_Implementation()
@@ -221,8 +235,8 @@ if __name__ == '__main__':
 
 
     substrings = []
-    for _ in range(0,16):
-        substrings.append(Learn_Engine.get_random_substring(5, num=10000))
+    for _ in range(0,8):
+        substrings.append(get_random_substring(5, num=1000))
 
     total_len = 0
     for entry in substrings:
@@ -233,18 +247,29 @@ if __name__ == '__main__':
     processes = []
     outputs = {}
 
+    #load substring frequency
+    with file("./runs/substring_frequency.txt", "r") as f:
+        pattern = re.compile('(\w+) (\d+)\n')
+        for line in f:
+            m = pattern.match(line)
+            if m:
+                outputs[m.group(1)] = int(m.group(2))
+
+    total_imported = len(outputs)
+    print ("%d substrings loaded at %d" % (total_imported, time.time()))
+
 
     with terminating(Pool(processes=8)) as pool:
-        for entry in pool.map(find_substring_occurrence,substrings):
+        for entry in pool.map(find_substring_occurrence,substrings,outputs):
             outputs = dict(outputs, **entry)
 
-
-
-
-
-
     finish_time = time.time()
-    print ("%d Substrings learned at %d" % (len(outputs), finish_time))
+    print ("%d Substrings learned at %d" % (len(outputs)-total_imported, finish_time))
     print ("Total time - %d" % (finish_time - strt_time))
+
+    with file("./runs/substring_frequency.txt", "w") as f:
+        for key in outputs:
+            f.write(key + " " + str(outputs[key]) + "\n")
+
 
 
