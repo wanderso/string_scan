@@ -260,11 +260,15 @@ if __name__ == '__main__':
 
 
     with terminating(Pool(processes=8)) as pool:
-        for entry in pool.map(find_substring_occurrence,substrings,outputs):
+#        print outputs
+        output_array = []
+        for _ in range(0,len(substrings)):
+            output_array.append(outputs)
+        for entry in pool.map(find_substring_occurrence,substrings,output_array):
             outputs = dict(outputs, **entry)
 
     finish_time = time.time()
-    print ("%d Substrings learned at %d" % (len(outputs)-total_imported, finish_time))
+    print ("%d substrings learned at %d" % (len(outputs)-total_imported, finish_time))
     print ("Total time - %d" % (finish_time - strt_time))
 
     with file("./runs/substring_frequency.txt", "w") as f:
