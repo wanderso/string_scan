@@ -138,7 +138,7 @@ def find_substring_occurrence_nocheck(substrings):
         megabytes = f.read()
         for entry in substrings:
             if entry in GLOBAL_SUBSTRINGS:
-                print ("Walkover")
+#                print ("Walkover")
                 continue
             p = re.compile(entry)
             result = p.findall(megabytes)
@@ -235,7 +235,10 @@ def get_substring_dict(substrings, existing_keys):
         for entry in substrings:
             if entry in existing_keys:
                 walkover += 1
+#                print ("Walkover: %s" % entry)
                 continue
+#            else:
+#                print ("No walkover: %s" % entry)
             entry_dict = {}
             entry_corrected = entry.strip("<>")
             if entry[0] == '<':
@@ -253,7 +256,7 @@ def get_substring_dict(substrings, existing_keys):
                 else:
                     entry_dict[object_group] = 1
             substring_dict_list[entry] = entry_dict
-    print ("Walkovers: %d" % walkover)
+#    print ("Walkovers: %d" % walkover)
     return substring_dict_list
 
 
@@ -261,9 +264,9 @@ def split_list(list_in, num):
     ret_list = []
     if num <= 1:
         return list_in
-    split_val = len(list_in) / (num-1)
+    split_val = len(list_in) / (num)
 #    print split_val
-    for i in range(num):
+    for i in range(num+1):
         ret_list.append(list_in[(i*split_val):((i+1)*split_val)])
 
 #    print("In split list %d, %d, %d " % (num, split_val, ((num) * split_val)))
@@ -341,13 +344,17 @@ if __name__ == '__main__':
 
     if os.path.isfile(substring_frequency_savename):
         with file(substring_frequency_savename, "r") as f:
-            pattern = re.compile('(\w+) ([^\n]+)\n')
+            pattern = re.compile('([\w><]+) ([^\n]+)\n')
             for line in f:
                 m = pattern.match(line)
                 if m:
                     substring_frequency_dict[m.group(1)] = ast.literal_eval(m.group(2))
 
-    print ("Length of substring load frequency - %d" % len(substring_frequency_dict))
+    print (substring_frequency_dict.keys())
+
+    existing_substring_load_dict = len(substring_frequency_dict)
+
+    print ("Length of existing substring load dictionary - %d" % existing_substring_load_dict)
 
     counts = {}
     for key in outputs:
@@ -361,7 +368,7 @@ if __name__ == '__main__':
 
     total = 0
 
-    sweet_spot = 0.99995
+    sweet_spot = 0.95
     target = int (float(len(outputs)) * sweet_spot)
     list_targets = []
     for key in counts:
@@ -387,11 +394,12 @@ if __name__ == '__main__':
 #    output = get_substring_dict(check_substring_targets)
 
 
-#    print ck_list
+#    for entry in ck_list:
+#        print len(entry)
 
 
     key_array = []
-    for _ in range(0, len(substrings)):
+    for _ in range(0, len(ck_list)):
         key_array.append(substring_frequency_dict.keys())
     for entry in pool.map(get_substring_dict, ck_list, key_array):
         substring_frequency_dict = dict(substring_frequency_dict, **entry)
@@ -399,7 +407,7 @@ if __name__ == '__main__':
     substring_dict_time = time.time()
 #    print substring_frequency_dict
 
-    print ("Learned %d substrings in - %d" % (len(substring_frequency_dict), (substring_dict_time - learn_finish_time)))
+    print ("Learned %d substrings in - %d" % (len(substring_frequency_dict)-existing_substring_load_dict, (substring_dict_time - learn_finish_time)))
 
     with file(substring_frequency_savename, "w") as f:
         for key in substring_frequency_dict:
