@@ -273,15 +273,12 @@ def split_list(list_in, num):
     return ret_list
 
 def generate_substring_input():
-    pass
-
-if __name__ == '__main__':
     naive = Base_Implementation()
     learn = Learn_Engine()
 
     naive.base_percentages_generate("./imp/package_no_comments.txt")
 
-    print (naive.naive_implementation("Blank","0603"))
+    print (naive.naive_implementation("Blank", "0603"))
 
     strt_time = time.time()
     print ("Starting process at %d" % strt_time)
@@ -291,7 +288,7 @@ if __name__ == '__main__':
 
     frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
 
-    for _ in range(0,8):
+    for _ in range(0, 8):
         substrings.append(get_random_substring(substring_length, num=1000))
 
     total_len = 0
@@ -323,11 +320,11 @@ if __name__ == '__main__':
     #     for entry in pool.map(find_substring_occurrence,substrings,output_array):
     #         outputs = dict(outputs, **entry)
 
-#    with terminating(Pool(processes=8)) as pool:
+    #    with terminating(Pool(processes=8)) as pool:
     key_array = []
-    for _ in range(0,len(substrings)):
+    for _ in range(0, len(substrings)):
         key_array.append(outputs.keys())
-    for entry in pool.map(find_substring_occurrence,substrings,key_array):
+    for entry in pool.map(find_substring_occurrence, substrings, key_array):
         outputs = dict(outputs, **entry)
 
     learn_finish_time = time.time()
@@ -337,7 +334,6 @@ if __name__ == '__main__':
     with file(frequency_filename, "w") as f:
         for key in outputs:
             f.write(key + " " + str(outputs[key]) + "\n")
-
 
     substring_frequency_savename = "./runs/substring_len_" + str(substring_length) + "_dictionary.txt"
     substring_frequency_dict = {}
@@ -363,13 +359,13 @@ if __name__ == '__main__':
         else:
             counts[outputs[key]] = 1
 
-    #print counts
+    # print counts
 
 
     total = 0
 
     sweet_spot = 0.95
-    target = int (float(len(outputs)) * sweet_spot)
+    target = int(float(len(outputs)) * sweet_spot)
     list_targets = []
     for key in counts:
         total += counts[key]
@@ -380,22 +376,20 @@ if __name__ == '__main__':
 
     check_substring_targets = []
 
-
-
     for key in outputs:
         if int(outputs[key]) >= list_targets[0]:
             check_substring_targets.append(key)
 
-    print ("%d substrings targeted for deep learning" %len(check_substring_targets))
+    print ("%d substrings targeted for deep learning" % len(check_substring_targets))
 
     ck_list = split_list(check_substring_targets, 8)
 
-#    output = []
-#    output = get_substring_dict(check_substring_targets)
+    #    output = []
+    #    output = get_substring_dict(check_substring_targets)
 
 
-#    for entry in ck_list:
-#        print len(entry)
+    #    for entry in ck_list:
+    #        print len(entry)
 
 
     key_array = []
@@ -405,9 +399,10 @@ if __name__ == '__main__':
         substring_frequency_dict = dict(substring_frequency_dict, **entry)
 
     substring_dict_time = time.time()
-#    print substring_frequency_dict
+    #    print substring_frequency_dict
 
-    print ("Learned %d substrings in - %d" % (len(substring_frequency_dict)-existing_substring_load_dict, (substring_dict_time - learn_finish_time)))
+    print ("Learned %d substrings in - %d" % (
+    len(substring_frequency_dict) - existing_substring_load_dict, (substring_dict_time - learn_finish_time)))
 
     with file(substring_frequency_savename, "w") as f:
         for key in substring_frequency_dict:
@@ -417,6 +412,71 @@ if __name__ == '__main__':
     print ("Wrote %d substrings to disk in - %d" % (len(substring_frequency_dict), (finish_time - substring_dict_time)))
 
     print ("Total time - %d" % (finish_time - strt_time))
+
+
+def calculate_string_probability_for_target(string,target):
+    # Chain rule - P(A,B) = P(B|A)P(A)
+    #            - P(A,B,C,D) = P(D|A,B,C)P(C|A,B)P(B|A)P(A)
+
+    # Bayes' Law - P(A|B) = P(B|A)*P(A)/P(B)
+    #            - P(A|B) = P(A,B)/P(B)
+
+    # Probability that String is-a Target: A
+    # Probability that String
+    # P(A) = P(A|B)*P(B) / P(B|A)
+
+    # P(A|B,C,D...) = P(A,B,C,D...)/P(B,C,D...)
+
+    # Fsck, doing it right is O(n^2) on n=number of saved substrings. We'll have to approximate.
+
+    string_anchored = "<" + string + ">"
+
+    substring_length = 5
+
+    substring_frequency_savename = "./runs/substring_len_" + str(substring_length) + "_dictionary.txt"
+    substring_frequency_dict = {}
+
+    if os.path.isfile(substring_frequency_savename):
+        with file(substring_frequency_savename, "r") as f:
+            pattern = re.compile('([\w><]+) ([^\n]+)\n')
+            for line in f:
+                m = pattern.match(line)
+                if m:
+                    substring_frequency_dict[m.group(1)] = ast.literal_eval(m.group(2))
+
+    substrings_in_input = []
+    for i in range(0, (len(string_anchored)-substring_length+1),1):
+        substrings_in_input.append(string_anchored[i:i+5])
+
+    print substrings_in_input
+
+    substrings_in_dictionary = []
+
+    for entry in substrings_in_input:
+        if entry in substring_frequency_dict:
+            #print substring_frequency_dict[entry]
+            total_items_in_category = 0
+            target_items_in_category = 0
+            substrings_in_dictionary.append(substring_frequency_dict[entry])
+            for category in substring_frequency_dict[entry]:
+                if category == target:
+                    target_items_in_category += substring_frequency_dict[entry][category]
+                total_items_in_category += substring_frequency_dict[entry][category]
+                    #substrings_in_dictionary.append(substring_frequency_dict[entry])
+            percentage = (float(target_items_in_category) / float(total_items_in_category))
+            print ("For string %s, %f probability across %d appearances" % (entry, percentage, total_items_in_category))
+
+    # How to make the approximation algorithm?
+    # Should return a number between 0 and 1 to indicate probability fitness
+    # Unanimity == V. good
+
+
+
+
+
+if __name__ == '__main__':
+#    generate_substring_input()
+    calculate_string_probability_for_target("CRCW12068R25FNTA","1206")
 
 
 
