@@ -278,7 +278,7 @@ def generate_substring_input():
 
     naive.base_percentages_generate("./imp/package_no_comments.txt")
 
-    print (naive.naive_implementation("Blank", "0603"))
+#    print (naive.naive_implementation("Blank", "0603"))
 
     strt_time = time.time()
     print ("Starting process at %d" % strt_time)
@@ -288,7 +288,7 @@ def generate_substring_input():
 
     frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
 
-    for _ in range(0, 8):
+    for _ in range(0, 32):
         substrings.append(get_random_substring(substring_length, num=1000))
 
     total_len = 0
@@ -364,7 +364,7 @@ def generate_substring_input():
 
     total = 0
 
-    sweet_spot = 0.95
+    sweet_spot = 0.80
     target = int(float(len(outputs)) * sweet_spot)
     list_targets = []
     for key in counts:
@@ -414,7 +414,7 @@ def generate_substring_input():
     print ("Total time - %d" % (finish_time - strt_time))
 
 
-def calculate_string_probability_for_target(string,target):
+def calculate_string_probability_for_target(string):
     # Chain rule - P(A,B) = P(B|A)P(A)
     #            - P(A,B,C,D) = P(D|A,B,C)P(C|A,B)P(B|A)P(A)
 
@@ -428,6 +428,8 @@ def calculate_string_probability_for_target(string,target):
     # P(A|B,C,D...) = P(A,B,C,D...)/P(B,C,D...)
 
     # Fsck, doing it right is O(n^2) on n=number of saved substrings. We'll have to approximate.
+
+    total_flag = "__TOTAL__><"
 
     string_anchored = "<" + string + ">"
 
@@ -448,35 +450,116 @@ def calculate_string_probability_for_target(string,target):
     for i in range(0, (len(string_anchored)-substring_length+1),1):
         substrings_in_input.append(string_anchored[i:i+5])
 
-    print substrings_in_input
+ #   print substrings_in_input
 
-    substrings_in_dictionary = []
+    substrings_in_dictionary = {}
+    category_possibilities = {}
 
     for entry in substrings_in_input:
         if entry in substring_frequency_dict:
             #print substring_frequency_dict[entry]
             total_items_in_category = 0
-            target_items_in_category = 0
-            substrings_in_dictionary.append(substring_frequency_dict[entry])
+            target_items_in_category = {}
+            substrings_in_dictionary[entry] = substring_frequency_dict[entry]
             for category in substring_frequency_dict[entry]:
-                if category == target:
-                    target_items_in_category += substring_frequency_dict[entry][category]
+                if category not in category_possibilities:
+                    category_possibilities[category] = 1.0
+                target_items_in_category[category] = substring_frequency_dict[entry][category]
                 total_items_in_category += substring_frequency_dict[entry][category]
-                    #substrings_in_dictionary.append(substring_frequency_dict[entry])
-            percentage = (float(target_items_in_category) / float(total_items_in_category))
-            print ("For string %s, %f probability across %d appearances" % (entry, percentage, total_items_in_category))
+            substrings_in_dictionary[entry][total_flag] = total_items_in_category
+            #substrings_in_dictionary.append(substring_frequency_dict[entry])
+#            category_possibilities[entry]
+            #percentage = (float(target_items_in_category[target]) / float(total_items_in_category))
+            #print ("For string %s, %f probability across %d appearances" % (entry, percentage, total_items_in_category))
 
     # How to make the approximation algorithm?
     # Should return a number between 0 and 1 to indicate probability fitness
     # Unanimity == V. good
+    # Floor? Not for start
+
+    #Super-naive version:
+
+#    category_probability_dict = {}
+
+#    for entry in category_possibilities.keys():
+#        category_probability_dict[entry] = 1.0
+
+#    print substrings_in_dictionary.keys()
+
+    for entry in substrings_in_input:
+        if entry in substring_frequency_dict:
+            for category in category_possibilities:
+                current_prob = category_possibilities[category]
+                if category in substrings_in_dictionary[entry]:
+                    new_factor = float(substrings_in_dictionary[entry][category])
+                else:
+                    new_factor = 1.0
+                category_possibilities[category] = category_possibilities[category] * (new_factor / float(substrings_in_dictionary[entry][total_flag]))
+
+#    print category_possibilities
+
+#    return category_possibilities
+
+    top_num = 0.0
+    second_num = 0.0
+    top_num_category = None
+
+    for entry in category_possibilities:
+        if category_possibilities[entry] >= top_num:
+            second_num = top_num
+            top_num_category = entry
+            top_num = category_possibilities[entry]
+        elif category_possibilities[entry] >= second_num:
+            second_num = category_possibilities[entry]
+
+    if top_num > (second_num * 10.0):
+        return top_num_category
+
+    else:
+        return None
 
 
+def test_ai_against_data():
+    testdata = "./imp/test_uniq.txt"
+
+    test_data_dict = {}
+
+    with file(testdata, "r") as f:
+        pattern = re.compile('([\w><]+) ([^\n]+)\n')
+        for line in f:
+            m = pattern.match(line)
+            if m:
+                test_data_dict[m.group(1)] = m.group(2)
+
+
+    target = random.choice(test_data_dict.keys())
+    #print ("Testing: %s - actual category %s: " % (target, test_data_dict[target]))
+
+    test_cycle = 100
+
+    correct_answers = 0
+    null_answers = 0
+    incorrect_answers = 0
+
+    for _ in range(test_cycle):
+        target = random.choice(test_data_dict.keys())
+        value = calculate_string_probability_for_target(target)
+        if value == test_data_dict[target]:
+            correct_answers += 1
+        elif value is not None:
+            null_answers += 1
+        else:
+            incorrect_answers += 1
+
+    print ("Correct: %d. Incorrect: %d. Insufficient data: %d" % (correct_answers, incorrect_answers, null_answers))
 
 
 
 if __name__ == '__main__':
-#    generate_substring_input()
-    calculate_string_probability_for_target("CRCW12068R25FNTA","1206")
+ #   generate_substring_input()
+    #print calculate_string_probability_for_target("TPS71709QDSERQ1")
+#    print calculate_string_probability_for_target("XC3S50AN-4TQG144I")
+    test_ai_against_data()
 
 
 
