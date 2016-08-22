@@ -284,12 +284,10 @@ def generate_substring_input():
 
     frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
 
-    for _ in range(0, 8):
-        substrings.append(get_random_substring(substring_length, num=100))
+    for _ in range(0, 32):
+        substrings.extend(get_random_substring(substring_length, num=100))
 
-    total_len = 0
-    for entry in substrings:
-        total_len += len(entry)
+    total_len = len(substrings)
 
     print ("%d substrings identified at %d" % (total_len, time.time()))
 
@@ -306,6 +304,27 @@ def generate_substring_input():
     total_imported = len(outputs)
     print ("%d substrings loaded at %d" % (total_imported, time.time()))
 
+    substrings_no_repeats = []
+
+    output_keys = outputs.keys()
+    output_keys.sort()
+
+    for entry in substrings:
+        if entry not in output_keys and entry not in substrings_no_repeats:
+            substrings_no_repeats.append(entry)
+
+    print ("%d substrings not already learned" % len(substrings_no_repeats))
+
+    substrings_split = []
+
+    split_val = 1000
+
+    if (len(substrings_no_repeats)) > split_val:
+        for i in range(0, len(substrings_no_repeats), split_val):
+            substrings_split.append(substrings_no_repeats[i:i + split_val])
+    else:
+        substrings_split = [substrings_no_repeats]
+
     pool = Pool(processes=8)
 
     # with terminating(Pool(processes=8)) as pool:
@@ -316,19 +335,46 @@ def generate_substring_input():
     #         outputs = dict(outputs, **entry)
 
     #    with terminating(Pool(processes=8)) as pool:
-    key_array = []
-    for _ in range(0, len(substrings)):
-        key_array.append(outputs.keys())
-    for entry in pool.map(find_substring_occurrence, substrings, key_array):
-        outputs = dict(outputs, **entry)
+#    key_array = []
+#    for _ in range(0, len(substrings)):
+#        key_array.append(outputs.keys())
+#    for entry in pool.map(find_substring_occurrence, substrings, key_array):
+#        outputs = dict(outputs, **entry)
+
+#    with file(frequency_filename, "w") as f:
+#        for key in outputs:
+#            f.write(key + " " + str(outputs[key]) + "\n")
+
+    #print substrings_split[0]
+
+    start_substring_pool_time = time.time()
+
+    print ("Starting frequency analysis")
+
+    for target_list in substrings_split:
+
+
+
+
+        ck_list = split_list(target_list, 8)
+
+        new_frequency_dict = {}
+
+        key_array = []
+        for _ in range(0, len(ck_list)):
+            key_array.append(outputs.keys())
+        for entry in pool.map(find_substring_occurrence_nocheck, ck_list):
+            new_frequency_dict = dict(new_frequency_dict, **entry)
+
+        with file(frequency_filename, "a") as f:
+            for key in new_frequency_dict:
+                f.write(key + " " + str(new_frequency_dict[key]) + "\n")
+
 
     learn_finish_time = time.time()
-    print ("%d substrings learned at %d" % (len(outputs) - total_imported, learn_finish_time))
-    print ("Time elapsed - %d" % (learn_finish_time - strt_time))
 
-    with file(frequency_filename, "w") as f:
-        for key in outputs:
-            f.write(key + " " + str(outputs[key]) + "\n")
+    print ("%d substrings learned at %d in %d" % (len(new_frequency_dict), learn_finish_time, (learn_finish_time- start_substring_pool_time)))
+    print ("Time elapsed - %d" % (learn_finish_time - strt_time))
 
     substring_frequency_savename = "./runs/substring_len_" + str(substring_length) + "_dictionary.txt"
     substring_frequency_dict = {}
@@ -358,7 +404,9 @@ def generate_substring_input():
 
     #print counts.keys().sort(key=int)
 
-    sorted_key_list = counts.keys().sort()
+    sorted_key_list = counts.keys()
+
+    sorted_key_list.sort()
 
     total = 0
 
@@ -382,36 +430,111 @@ def generate_substring_input():
 
     print ("%d substrings targeted for deep learning" % len(check_substring_targets))
 
-    ck_list = split_list(check_substring_targets, 8)
-
-    #    output = []
-    #    output = get_substring_dict(check_substring_targets)
-
-
-    #    for entry in ck_list:
-    #        print len(entry)
+    new_substring_targets = []
+    for entry in check_substring_targets:
+        if entry not in substring_frequency_dict:
+            new_substring_targets.append(entry)
 
 
-    key_array = []
-    for _ in range(0, len(ck_list)):
-        key_array.append(substring_frequency_dict.keys())
-    for entry in pool.map(get_substring_dict, ck_list, key_array):
-        substring_frequency_dict = dict(substring_frequency_dict, **entry)
+    new_substring_targets_split = []
+
+    split_val = 1000
+
+    if(len(new_substring_targets)) > split_val:
+        for i in range (0,len(new_substring_targets), split_val):
+            new_substring_targets_split.append(new_substring_targets[i:i+split_val])
+    else:
+        new_substring_targets_split = [new_substring_targets]
+
+
+
+    for target_list in new_substring_targets_split:
+
+
+        ck_list = split_list(target_list, 8)
+
+        new_frequency_dict = {}
+
+        key_array = []
+        for _ in range(0, len(ck_list)):
+            key_array.append(substring_frequency_dict.keys())
+        for entry in pool.map(get_substring_dict, ck_list, key_array):
+            new_frequency_dict = dict(new_frequency_dict, **entry)
+
+        with file(substring_frequency_savename, "a") as f:
+            for key in new_frequency_dict:
+                f.write(key + " " + str(new_frequency_dict[key]) + "\n")
+
+
+
+    #substring_frequency_dict = dict(substring_frequency_dict, **new_frequency_dict)
 
     substring_dict_time = time.time()
     #    print substring_frequency_dict
 
-    print ("Learned %d substrings in - %d" % (
-    len(substring_frequency_dict) - existing_substring_load_dict, (substring_dict_time - learn_finish_time)))
-
-    with file(substring_frequency_savename, "w") as f:
-        for key in substring_frequency_dict:
-            f.write(key + " " + str(substring_frequency_dict[key]) + "\n")
+    print ("Learned %d substrings in - %d" % (len(new_frequency_dict), (substring_dict_time - learn_finish_time)))
 
     finish_time = time.time()
-    print ("Wrote %d substrings to disk in - %d" % (len(substring_frequency_dict), (finish_time - substring_dict_time)))
+#    print ("Wrote %d substrings to disk in - %d" % (len(substring_frequency_dict), (finish_time - substring_dict_time)))
 
     print ("Total time - %d" % (finish_time - strt_time))
+
+
+def compress_substring_files(substring_length=5):
+    # <9T06
+    frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
+    substring_dictionary_savename = "./runs/substring_len_" + str(substring_length) + "_dictionary.txt"
+
+    substring_dictionary_lines = 0
+
+    substring_dict = {}
+
+    if os.path.isfile(substring_dictionary_savename):
+        with file(substring_dictionary_savename, "r") as f:
+            for line in f:
+                if line:
+                    substring_dictionary_lines += 1
+                    a = line[:substring_length]
+                    b = line[substring_length + 1:]
+                    substring_dict[a] = ast.literal_eval(b)
+
+    print("%d lines in %s - %d unique keys" %(substring_dictionary_lines,substring_dictionary_savename,len(substring_dict)))
+
+    substring_frequency_lines = 0
+    substring_frequency = {}
+
+    if os.path.isfile(frequency_filename):
+        with file(frequency_filename, "r") as f:
+            for line in f:
+                if line:
+                    substring_frequency_lines += 1
+                m = line.rsplit(' ', 1)
+                if m[1]:
+                    substring_frequency[m[0]] = int(m[1])
+
+    print("%d lines in %s - %d unique keys" %(substring_frequency_lines,frequency_filename,len(substring_frequency)))
+
+    if substring_dictionary_lines != len(substring_dict):
+        print ("Writing dictionary to disk without repeats - DO NOT SHUT DOWN PROCESS")
+        with file(substring_dictionary_savename, "w") as f:
+            key_val = substring_dict.keys()
+            key_val.sort()
+            for key in key_val:
+                f.write(key + " " + str(substring_dict[key]) + "\n")
+
+
+
+
+    if substring_frequency_lines != len(substring_frequency):
+        print ("Writing frequencies to disk without repeats - DO NOT SHUT DOWN PROCESS")
+        with file(frequency_filename, "w") as f:
+            key_val = substring_frequency.keys()
+            key_val.sort()
+            for key in key_val:
+                f.write(key + " " + str(substring_frequency[key]) + "\n")
+
+    print ("It is now safe to shut down the process")
+
 
 
 def calculate_string_probability_for_target(input_list):
@@ -637,10 +760,11 @@ def test_ai_against_data():
 
 if __name__ == '__main__':
 #    Learn_Engine.generate_list_strings()
-    generate_substring_input()
+#    generate_substring_input()
 #    calculate_string_probability_for_target(["GRM185D70J475ME11D"])
 #    print calculate_string_probability_for_target("XC3S50AN-4TQG144I")
-#    test_ai_against_data()
+    test_ai_against_data()
+#     compress_substring_files()
 
 
 
