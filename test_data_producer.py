@@ -25,22 +25,20 @@ class Base_Implementation:
 
     def base_percentages_generate(self, package_names_file):
         self.synonyms = {}
-        pattern_category = re.compile('^([\w,-/\\\\+\(\):#%\$&;\'\*\s]+)\t(\d+)\n$')
-        pattern_synonym = re.compile('^([\w,-/\\\\+\(\):#%\$&;\'\*\s]+) ([\w,-/\\\\+\(\):#%\$&;\'\*\s]+)\n$')
         with file(package_names_file, "r") as f:
             for line in f:
-                m = pattern_category.match(line)
-                if m:
-                    target = m.group(1)
-                    val = int(m.group(2))
-#                    print (m.group(1),int(m.group(2)))
+#                m = pattern_category.match(line)
+                if '\t' in line:
+                    m = line.rsplit('\t', 1)
+                    target = m[0]
+                    val = int(m[1])
                     self.base_likelihood[target] = val
                     self.total_probability += val
                 else:
-                    n = pattern_synonym.match(line)
-                    if n:
-                        syn1 = n.group(1)
-                        syn2 = n.group(2)
+                    m = line.rsplit(' ', 1)
+                    if m[1]:
+                        syn1 = m[0]
+                        syn2 = m[1]
                         if syn1 in self.synonyms:
                             self.synonyms[syn1].append(syn2)
                         else:
@@ -73,13 +71,13 @@ class Learn_Engine:
     @staticmethod
     def generate_list_strings():
         words = []
-        pattern = re.compile('^([\w,-/\\\\+\(\):#%\$&;\'\*\s]+) ([^\n]+)\n$')
         with file ("./imp/learn_uniq.txt", "r") as f:
-            for line in f:
-                m = pattern.match(line)
-                if m:
-                    target = m.group(1)
-                    words.append("<" + target + ">")
+            megabytes = f.read()
+            file_lines = megabytes.split('\n')
+            for line in file_lines:
+                word = line.rsplit(' ', 1)[0]
+                if word:
+                    words.append("<" + word + ">")
 
         with file ("./imp/learn_strings_only.txt", "w") as f:
             for entry in words:
@@ -136,13 +134,12 @@ def find_substring_occurrence_nocheck(substrings):
     filename = "./imp/learn_strings_only.txt"
     with file(filename, "rb") as f:
         megabytes = f.read()
+        file_lines = megabytes.split('\n')
         for entry in substrings:
             if entry in GLOBAL_SUBSTRINGS:
-#                print ("Walkover")
                 continue
-            p = re.compile(entry)
-            result = p.findall(megabytes)
-            GLOBAL_SUBSTRINGS[entry] = len(result)
+            result = megabytes.count(entry)
+            GLOBAL_SUBSTRINGS[entry] = result
 
     return GLOBAL_SUBSTRINGS
 
@@ -152,13 +149,13 @@ def find_substring_occurrence(substrings,existing_keys):
     filename = "./imp/learn_strings_only.txt"
     with file(filename, "rb") as f:
         megabytes = f.read()
+        file_lines = megabytes.split('\n')
         for entry in substrings:
             if entry in existing_keys:
                 walkover += 1
                 continue
-            p = re.compile(entry)
-            result = p.findall(megabytes)
-            GLOBAL_SUBSTRINGS[entry] = len(result)
+            result = megabytes.count(entry)
+            GLOBAL_SUBSTRINGS[entry] = result
    # print ("Walkovers: %d" % walkover)
     return GLOBAL_SUBSTRINGS
 
@@ -232,38 +229,30 @@ def get_substring_dict(substrings, existing_keys):
     walkover = 0
     with file(filename, "rb") as f:
         megabytes = f.read()
+        file_lines = megabytes.split('\n')
         for entry in substrings:
-            #print (entry)
-            if entry in existing_keys:
-                walkover += 1
-#                print ("Walkover: %s" % entry)
-                continue
-#            else:
-#                print ("No walkover: %s" % entry)
+            entry_corrected = entry.strip("<>")
             entry_dict = {}
-            entry_corrected = entry.strip("<>\n")
-            if entry[0] == '<':
-                pattern = re.compile('(' + entry_corrected + ')[\w, - /\\\\+\(\):  # %\$&;\'\*\s]* ([\w, - /\\\\+\(\):  # %\$&;\'\*\s]+)\n')
-            elif entry[-1] == '>':
-                continue
-                pattern = re.compile('[.]*(' + entry_corrected + ') ([\w, - /\\\\+\(\):  # %\$&;\'\*\s]+)\n')
-            else:
-                continue
-                pattern = re.compile('[\w, - /\\\\+\(\):  # %\$&;\'\*\s]*(' + entry_corrected + ')[\w, - /\\\\+\(\):  # %\$&;\'\*\s]* ([\w, - /\\\\+\(\):  # %\$&;\'\*\s]+)\n')
-
-            print ("Pattern findall %s" % entry)
-            result = pattern.findall(megabytes)
-
-            print ("Pattern foundall %s" % (entry))
-            #print (entry_corrected,result)
-            for match in result:
-                object_group = match[1]
-                if object_group in entry_dict:
-                    entry_dict[object_group] += 1
+            for line in file_lines:
+                found = False
+                if entry[0] == '<':
+                    if entry_corrected in line[:len(entry_corrected)]:
+                        found = True
+                elif entry[-1] == '>':
+                    if entry_corrected in line.rsplit(' ', 1)[0][-len(entry_corrected):]:
+                        found = True
                 else:
-                    entry_dict[object_group] = 1
+                    if entry_corrected in line:
+                        found = True
+
+                if found:
+                    object_group = line.split(" ")[-1]
+                    if object_group in entry_dict:
+                        entry_dict[object_group] += 1
+                    else:
+                        entry_dict[object_group] = 1
             substring_dict_list[entry] = entry_dict
-#    print ("Walkovers: %d" % walkover)
+
     return substring_dict_list
 
 
@@ -309,11 +298,10 @@ def generate_substring_input():
 
     if os.path.isfile(frequency_filename):
         with file(frequency_filename, "r") as f:
-            pattern = re.compile('^([\w,-/\\\\+\(\):#%\$&;\'\*\s]+) ([^\n]+)\n$')
             for line in f:
-                m = pattern.match(line)
-                if m:
-                    outputs[m.group(1)] = int(m.group(2))
+                m = line.rsplit(' ', 1)
+                if m[1]:
+                    outputs[m[0]] = int(m[1])
 
     total_imported = len(outputs)
     print ("%d substrings loaded at %d" % (total_imported, time.time()))
@@ -347,13 +335,13 @@ def generate_substring_input():
 
     if os.path.isfile(substring_frequency_savename):
         with file(substring_frequency_savename, "r") as f:
-            pattern = re.compile('^([\w,-/\\\\+\(\):#%\$&;\'\*\s]+) ([^\n]+)\n$')
             for line in f:
-                m = pattern.match(line)
-                if m:
-                    substring_frequency_dict[m.group(1)] = ast.literal_eval(m.group(2))
+                if line:
+                    a = line[:substring_length]
+                    b = line[substring_length+1:]
+                    substring_frequency_dict[a] = ast.literal_eval(b)
 
-    print (substring_frequency_dict.keys())
+    #print (substring_frequency_dict.keys())
 
     existing_substring_load_dict = len(substring_frequency_dict)
 
@@ -366,18 +354,23 @@ def generate_substring_input():
         else:
             counts[outputs[key]] = 1
 
-    # print counts
+    #print counts
 
+    #print counts.keys().sort(key=int)
+
+    sorted_key_list = counts.keys().sort()
 
     total = 0
 
-    sweet_spot = 0.9995
+    sweet_spot = 0.95
     target = int(float(len(outputs)) * sweet_spot)
     list_targets = []
-    for key in counts:
+    for key in sorted_key_list:
         total += counts[key]
         if total > target:
             list_targets.append(key)
+
+    #print list_targets
 
     print ("Targeting all entries >= %d" % list_targets[0])
 
@@ -449,11 +442,11 @@ def calculate_string_probability_for_target(input_list):
 
     if os.path.isfile(substring_frequency_savename):
         with file(substring_frequency_savename, "r") as f:
-            pattern = re.compile('^([\w,-/\\\\+\(\):#%\$&;\'\*\s]+) ([^\n]+)\n$')
             for line in f:
-                m = pattern.match(line)
-                if m:
-                    substring_frequency_dict[m.group(1)] = ast.literal_eval(m.group(2))
+                if line:
+                    a = line[:substring_length]
+                    b = line[substring_length + 1:]
+                    substring_frequency_dict[a] = ast.literal_eval(b)
 
     output_list = []
 
@@ -517,7 +510,7 @@ def calculate_string_probability_for_target(input_list):
         if total_flag in category_possibilities:
             print ("Total flag here")
 
-    #    print category_possibilities
+  #      print category_possibilities
 
     #    return category_possibilities
 
@@ -552,20 +545,22 @@ def test_ai_against_data():
     int_lines = 0
 
     with file(testdata, "r") as f:
-        pattern = re.compile('^([\w,-/\\\\+\(\):#%\$&;\'\*\s]+) ([^\n]+)\n$')
+#        pattern = re.compile('^([\w,-/\\\\+\(\):#%\$&;\'\*\s]+) ([^\n]+)\n$')
         for line in f:
             int_lines += 1
-            m = pattern.match(line)
-            if m:
-                test_data_dict[m.group(1)] = m.group(2)
+            #m = pattern.match(line)
+            m = line.rsplit(' ', 1)
+            if m[1]:
+                test_data_dict[m[0]] = m[1].strip("\n")
             else:
-                print line
-#                print ("Error!")
+#                print line
+                print ("Error!")
+                pass
 
     print (int_lines)
 
 
-    target = random.choice(test_data_dict.keys())
+    #target = random.choice(test_data_dict.keys())
     #print ("Testing: %s - actual category %s: " % (target, test_data_dict[target]))
 
     test_cycle = 100000
@@ -627,7 +622,8 @@ def test_ai_against_data():
 
 
     for (target, value) in test_data:
-        #print (target,value)
+#        print (target,value,test_data_dict[target])
+#        print value == test_data_dict[target]
         if value == test_data_dict[target]:
             correct_answers += 1
         elif value is not None:
@@ -640,8 +636,9 @@ def test_ai_against_data():
 
 
 if __name__ == '__main__':
+#    Learn_Engine.generate_list_strings()
     generate_substring_input()
-    #print calculate_string_probability_for_target("TPS71709QDSERQ1")
+#    calculate_string_probability_for_target(["GRM185D70J475ME11D"])
 #    print calculate_string_probability_for_target("XC3S50AN-4TQG144I")
 #    test_ai_against_data()
 
