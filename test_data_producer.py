@@ -284,7 +284,7 @@ def generate_substring_input():
 
     frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
 
-    for _ in range(0, 32):
+    for _ in range(0, 8):
         substrings.extend(get_random_substring(substring_length, num=100))
 
     total_len = len(substrings)
@@ -410,7 +410,7 @@ def generate_substring_input():
 
     total = 0
 
-    sweet_spot = 0.95
+    sweet_spot = 0.6
     target = int(float(len(outputs)) * sweet_spot)
     list_targets = []
     for key in sorted_key_list:
@@ -754,17 +754,299 @@ def test_ai_against_data():
         else:
             null_answers += 1
 
+    total_runs = float(len(test_data))
+
     print ("Correct: %d. Incorrect: %d. Insufficient data: %d" % (correct_answers, incorrect_answers, null_answers))
+
+    print ("Correct: %.2f%%. Incorrect: %.2f%%. Insufficient data: %.2f%%" % (100*correct_answers/total_runs, 100*incorrect_answers/total_runs, 100*null_answers/total_runs))
+
+def exhaust_substring_freq(substring_length=5):
+    frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
+    substring_dictionary_savename = "./runs/substring_len_" + str(substring_length) + "_dictionary.txt"
+
+    substring_dict = {}
+
+    if os.path.isfile(substring_dictionary_savename):
+        with file(substring_dictionary_savename, "r") as f:
+            for line in f:
+                if line:
+                    a = line[:substring_length]
+                    b = line[substring_length + 1:]
+                    substring_dict[a] = ast.literal_eval(b)
+
+    print("Loaded substring dictionary - %d unique keys" % (len(substring_dict)))
+
+    substring_frequency = {}
+
+    if os.path.isfile(frequency_filename):
+        with file(frequency_filename, "r") as f:
+            for line in f:
+                m = line.rsplit(' ', 1)
+                if m[1]:
+                    substring_frequency[m[0]] = int(m[1])
+
+    print("Loaded substring frequency chart - %d unique keys" % (len(substring_frequency)))
+
+    substring_dict_keys = substring_dict.keys()
+    substring_frequency_keys = substring_frequency.keys()
+
+    testdata = "./imp/learn_uniq.txt"
+
+    test_data_list = []
+
+    print ("Loading learn data...")
+
+    int_lines = 0
+
+    with file(testdata, "r") as f:
+        for line in f:
+            int_lines += 1
+            m = line.rsplit(' ', 1)
+            if m[1]:
+                test_data_list.append(m[0])
+            else:
+                pass
+
+    print ("Loaded %d lines of learn data" % int_lines)
+
+    total_substrings = 0
+    substrings_in_freq = 0
+    substrings_in_dict = 0
+
+    all_substring_dict = {}
+
+    with file(testdata, "r") as f:
+        for line in f:
+            int_lines += 1
+            m = line.rsplit(' ', 1)
+            if m[1]:
+                test_data_list.append(m[0])
+            else:
+                pass
+
+    for string in test_data_list:
+        string_anchored = "<" + string + ">"
+
+        substrings_in_input = []
+
+        for i in range(0, (len(string_anchored) - substring_length + 1), 1):
+            substrings_in_input.append(string_anchored[i:i + 5])
+
+        for entry in substrings_in_input:
+            if entry in all_substring_dict:
+                all_substring_dict[entry] += 1
+            else:
+                all_substring_dict[entry] = 1
+
+    all_substrings = all_substring_dict.keys()
+
+    learn_substring_dict = dict(all_substring_dict)
+
+    print ("%d unique substrings of length %d in test data." % (len(all_substrings), substring_length))
+
+    for entry in all_substrings:
+        entry_num = all_substring_dict[entry]
+        total_substrings += entry_num
+
+    print ("%d substrings of length %d total." % (total_substrings, substring_length))
+
+    print ("Calculating convergence...")
+
+    for entry in substring_dict_keys:
+        if entry in all_substring_dict:
+            substrings_in_dict += all_substring_dict[entry]
+#            learn_substring_dict.remove(entry)
+
+    print ("%d substrings of length %d found in dictionary." % (substrings_in_dict, substring_length))
+
+    for entry in substring_frequency_keys:
+        if entry in all_substring_dict:
+            substrings_in_freq += all_substring_dict[entry]
+            learn_substring_dict.pop(entry)
+
+    print ("%d substrings of length %d found in frequency chart." % (substrings_in_freq, substring_length))
+
+    print ("Convergence calculated.")
+
+    print ("Total: %d. In dict: %d. In freq: %d" % (total_substrings, substrings_in_dict, substrings_in_freq))
+    print ("In dict: %.2f%%. In freq: %.2f%%." % (100 * float(substrings_in_dict) / float(total_substrings),
+                                                  100 * float(substrings_in_freq) / float(total_substrings)))
+
+    print ("Substrings to learn: %s" % len(learn_substring_dict))
+
+    substrings_no_repeats = learn_substring_dict.keys()
+
+    substrings_split = []
+
+    split_val = 10000
+
+    if (len(substrings_no_repeats)) > split_val:
+        for i in range(0, len(substrings_no_repeats), split_val):
+            substrings_split.append(substrings_no_repeats[i:i + split_val])
+    else:
+        substrings_split = [substrings_no_repeats]
+
+    pool = Pool(processes=8)
+
+    # with terminating(Pool(processes=8)) as pool:
+    #     output_array = []
+    #     for _ in range(0,len(substrings)):
+    #         output_array.append(outputs)
+    #     for entry in pool.map(find_substring_occurrence,substrings,output_array):
+    #         outputs = dict(outputs, **entry)
+
+    #    with terminating(Pool(processes=8)) as pool:
+    #    key_array = []
+    #    for _ in range(0, len(substrings)):
+    #        key_array.append(outputs.keys())
+    #    for entry in pool.map(find_substring_occurrence, substrings, key_array):
+    #        outputs = dict(outputs, **entry)
+
+    #    with file(frequency_filename, "w") as f:
+    #        for key in outputs:
+    #            f.write(key + " " + str(outputs[key]) + "\n")
+
+    # print substrings_split[0]
+
+
+    print ("Starting frequency analysis")
+
+    iterations = 0
+
+    for target_list in substrings_split:
+
+        ck_list = split_list(target_list, 8)
+
+        new_frequency_dict = {}
+
+        for entry in pool.map(find_substring_occurrence_nocheck, ck_list):
+            new_frequency_dict = dict(new_frequency_dict, **entry)
+
+        with file(frequency_filename, "a") as f:
+            for key in new_frequency_dict:
+                f.write(key + " " + str(new_frequency_dict[key]) + "\n")
+
+        iterations += 1
+
+#        print ("%d substrings learned" % (split_val*iterations))
+
+
+def find_substring_coverage(substring_length=5):
+
+    frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
+    substring_dictionary_savename = "./runs/substring_len_" + str(substring_length) + "_dictionary.txt"
+
+    substring_dict = {}
+
+    if os.path.isfile(substring_dictionary_savename):
+        with file(substring_dictionary_savename, "r") as f:
+            for line in f:
+                if line:
+                    a = line[:substring_length]
+                    b = line[substring_length + 1:]
+                    substring_dict[a] = ast.literal_eval(b)
+
+    print("Loaded substring dictionary - %d unique keys" % (len(substring_dict)))
+
+    substring_frequency = {}
+
+    if os.path.isfile(frequency_filename):
+        with file(frequency_filename, "r") as f:
+            for line in f:
+                m = line.rsplit(' ', 1)
+                if m[1]:
+                    substring_frequency[m[0]] = int(m[1])
+
+    print("Loaded substring frequency chart - %d unique keys" % (len(substring_frequency)))
+
+    substring_dict_keys = substring_dict.keys()
+    substring_frequency_keys = substring_frequency.keys()
+
+    testdata = "./imp/test_uniq.txt"
+
+    test_data_list = []
+
+    print ("Loading test data...")
+
+    int_lines = 0
+
+    with file(testdata, "r") as f:
+        for line in f:
+            int_lines += 1
+            m = line.rsplit(' ', 1)
+            if m[1]:
+                test_data_list.append(m[0])
+            else:
+                pass
+
+    print ("Loaded %d lines of test data" % int_lines)
+
+    print ("Counting all substrings...")
+
+
+    total_substrings = 0
+    substrings_in_freq = 0
+    substrings_in_dict = 0
+
+    all_substring_dict = {}
+
+    for string in test_data_list:
+        string_anchored = "<" + string + ">"
+
+        substrings_in_input = []
+
+        for i in range(0, (len(string_anchored) - substring_length + 1), 1):
+            substrings_in_input.append(string_anchored[i:i + 5])
+
+        for entry in substrings_in_input:
+            if entry in all_substring_dict:
+                all_substring_dict[entry] += 1
+            else:
+                all_substring_dict[entry] = 1
+
+    all_substrings = all_substring_dict.keys()
+
+    print ("%d unique substrings of length %d in test data." %(len(all_substrings),substring_length))
+
+    for entry in all_substrings:
+        entry_num = all_substring_dict[entry]
+        total_substrings += entry_num
+
+    print ("%d substrings of length %d total." % (total_substrings,substring_length))
+
+    print ("Calculating convergence...")
+
+    for entry in substring_dict_keys:
+        if entry in all_substring_dict:
+            substrings_in_dict += all_substring_dict[entry]
+
+    print ("%d substrings of length %d found in dictionary." % (substrings_in_dict,substring_length))
+
+    for entry in substring_frequency_keys:
+        if entry in all_substring_dict:
+            substrings_in_freq += all_substring_dict[entry]
+
+    print ("%d substrings of length %d found in frequency chart." % (substrings_in_freq,substring_length))
+
+
+    print ("Convergence calculated.")
+
+    print ("Total: %d. In dict: %d. In freq: %d" % (total_substrings, substrings_in_dict, substrings_in_freq))
+    print ("In dict: %.2f%%. In freq: %.2f%%." % (100*float(substrings_in_dict)/float(total_substrings), 100*float(substrings_in_freq)/float(total_substrings)))
+
+
 
 
 
 if __name__ == '__main__':
 #    Learn_Engine.generate_list_strings()
-#    generate_substring_input()
+#     generate_substring_input()
 #    calculate_string_probability_for_target(["GRM185D70J475ME11D"])
 #    print calculate_string_probability_for_target("XC3S50AN-4TQG144I")
-    test_ai_against_data()
+     test_ai_against_data()
 #     compress_substring_files()
+#     find_substring_coverage()
+#     exhaust_substring_freq()
 
 
 
