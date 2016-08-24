@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+
+<h3>A demonstration of how to access a Search field</h3>
+
+<input type="search" id="mySearch" placeholder="Search for something..">
+
+<p>Click the button to get the placeholder text of the search field.</p>
+
+<button onclick="myFunction()">Try it</button>
+
+<script>
+function myFunction() {
+    var x = document.getElementById("mySearch").value;
+    window.location.href = 'http://127.0.0.1:8003/' + x;
+}
+
+</script>
+</body>
+</html>

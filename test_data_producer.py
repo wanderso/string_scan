@@ -20,6 +20,7 @@ class Base_Implementation:
 
     def __init__(self):
         self.synonyms = {}
+        self.replace_list = []
         self.base_likelihood = {}
         self.total_probability = 0
 
@@ -27,7 +28,6 @@ class Base_Implementation:
         self.synonyms = {}
         with file(package_names_file, "r") as f:
             for line in f:
-#                m = pattern_category.match(line)
                 if '\t' in line:
                     m = line.rsplit('\t', 1)
                     target = m[0]
@@ -35,18 +35,69 @@ class Base_Implementation:
                     self.base_likelihood[target] = val
                     self.total_probability += val
                 else:
-                    m = line.rsplit(' ', 1)
+                    m = line.split(' ', 1)
                     if m[1]:
-                        syn1 = m[0]
-                        syn2 = m[1]
-                        if syn1 in self.synonyms:
-                            self.synonyms[syn1].append(syn2)
-                        else:
-                            self.synonyms[syn1] = [syn2]
-                        if syn2 in self.synonyms:
-                            self.synonyms[syn2].append(syn1)
-                        else:
-                            self.synonyms[syn2] = [syn1]
+                        syn1 = m[0].strip()
+                        syn2 = m[1].strip()
+
+                        #relationship_introduced_1 = False
+                        #relationship_introduced_2 = False
+
+
+                        #for entry in self.synonyms:
+                            #if syn1 in self.synonyms[entry]:
+                                #self.synonyms[entry].append(syn2)
+                                #relationship_introduced_1 = True
+                                #for sub_entry in self.synonyms[entry]:
+#                                    if sub_entry in self.synonyms:
+ #                                       self.synonyms[sub_entry].append(syn1)
+  #                          elif syn2 in self.synonyms[entry]:
+  #                              self.synonyms[entry].append(syn1)
+   #                             relationship_introduced_2 = True
+   #                             for sub_entry in self.synonyms[entry]:
+    #                                if sub_entry in self.synonyms:
+     #                                   self.synonyms[sub_entry].append(syn1)
+
+      #                  if not relationship_introduced_1:
+        #                    self.synonyms[syn1] = [syn2]
+       #                 if not relationship_introduced_2:
+         #                   self.synonyms[syn2] = [syn1]
+                        self.replace_list.append((syn1, syn2))
+
+        for entry in self.replace_list:
+            syn1 = entry[0]
+            syn2 = entry[1]
+ #           print (syn1, syn2)
+
+            key_list_1 = []
+            key_list_2 = []
+
+
+            if syn1 not in self.synonyms:
+                self.synonyms[syn1] = [syn2]
+            else:
+                for key in self.synonyms[syn1]:
+                    self.synonyms[key].append(syn2)
+#                    print "Recursiveappend: %s, %s, %s" % (key, syn1, syn2)
+                    key_list_1.append(key)
+                self.synonyms[syn1].append(syn2)
+            if syn2 not in self.synonyms:
+                self.synonyms[syn2] = [syn1]
+            else:
+                for key in self.synonyms[syn2]:
+                    self.synonyms[key].append(syn1)
+#                    print "Recursiveappend: %s, %s, %s" % (key, syn2, syn1)
+                    key_list_2.append(key)
+                self.synonyms[syn2].append(syn1)
+
+            for entry in key_list_1:
+                self.synonyms[syn2].append(entry)
+
+            for entry in key_list_2:
+                self.synonyms[syn1].append(entry)
+
+
+
 
 
     def naive_implementation(self,string_part,string_category):
@@ -480,7 +531,7 @@ def generate_substring_input():
     print ("Total time - %d" % (finish_time - strt_time))
 
 
-def compress_substring_files(substring_length=5):
+def compress_substring_files(synonyms=None, substring_length=5, replace_list=[]):
     # <9T06
     frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
     substring_dictionary_savename = "./runs/substring_len_" + str(substring_length) + "_dictionary.txt"
@@ -514,7 +565,26 @@ def compress_substring_files(substring_length=5):
 
     print("%d lines in %s - %d unique keys" %(substring_frequency_lines,frequency_filename,len(substring_frequency)))
 
-    if substring_dictionary_lines != len(substring_dict):
+    synonym_replacer = {}
+
+    synonyms_dirty = False
+
+    for entry in replace_list:
+        for key in substring_dict:
+            if entry[0] in substring_dict[key]:
+                value1 = substring_dict[key][entry[0]]
+                value2 = 0
+                if entry[1] in substring_dict[key]:
+                    value2 = substring_dict[key][entry[0]]
+                value2 += value1
+                substring_dict[key][entry[1]] = value2
+                substring_dict[key].pop(entry[0])
+                synonyms_dirty = True
+
+
+
+
+    if (substring_dictionary_lines != len(substring_dict)) or synonyms_dirty:
         print ("Writing dictionary to disk without repeats - DO NOT SHUT DOWN PROCESS")
         with file(substring_dictionary_savename, "w") as f:
             key_val = substring_dict.keys()
@@ -658,7 +728,8 @@ def calculate_string_probability_for_target(input_list):
     return output_list
 
 
-def test_ai_against_data():
+def test_ai_against_data(synonyms=None,substring_length=5):
+
     testdata = "./imp/test_uniq.txt"
 
     test_data_dict = {}
@@ -739,26 +810,56 @@ def test_ai_against_data():
     fnsh = time.time()
 
 
-    print ("Exiting test data phase")
+    print ("Exiting test data phase after %d seconds" % (fnsh-strt))
 
-    print (fnsh-strt)
+    incorrect_list = []
+    null_list = []
 
+    print (synonyms)
 
     for (target, value) in test_data:
 #        print (target,value,test_data_dict[target])
 #        print value == test_data_dict[target]
         if value == test_data_dict[target]:
             correct_answers += 1
+        elif synonyms and test_data_dict[target] in synonyms and value in synonyms[test_data_dict[target]]:
+#            print "I am here"
+            correct_answers += 1
         elif value is not None:
+#            print target
             incorrect_answers += 1
+            incorrect_list.append((target, value, test_data_dict[target]))
         else:
             null_answers += 1
+            null_list.append((target, value, test_data_dict[target]))
+
 
     total_runs = float(len(test_data))
 
     print ("Correct: %d. Incorrect: %d. Insufficient data: %d" % (correct_answers, incorrect_answers, null_answers))
 
     print ("Correct: %.2f%%. Incorrect: %.2f%%. Insufficient data: %.2f%%" % (100*correct_answers/total_runs, 100*incorrect_answers/total_runs, 100*null_answers/total_runs))
+
+    incorrect_filename = "./meta/incorrect_substring_len_" + str(substring_length) + ".txt"
+    null_filename = "./meta/null_substring_len_" + str(substring_length) + ".txt"
+
+    with file(incorrect_filename, "w") as f:
+        for entry in incorrect_list:
+            string = ""
+            for value in entry:
+                string = string + " " + str(value)
+            string = string + "\n"
+            f.write(string)
+
+    with file(null_filename, "w") as f:
+        for entry in null_list:
+            string = ""
+            for value in entry:
+                string = string + " " + str(value)
+            string = string + "\n"
+            f.write(string)
+
+
 
 def exhaust_substring_freq(substring_length=5):
     frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
@@ -855,7 +956,6 @@ def exhaust_substring_freq(substring_length=5):
     for entry in substring_dict_keys:
         if entry in all_substring_dict:
             substrings_in_dict += all_substring_dict[entry]
-#            learn_substring_dict.remove(entry)
 
     print ("%d substrings of length %d found in dictionary." % (substrings_in_dict, substring_length))
 
@@ -888,27 +988,6 @@ def exhaust_substring_freq(substring_length=5):
 
     pool = Pool(processes=8)
 
-    # with terminating(Pool(processes=8)) as pool:
-    #     output_array = []
-    #     for _ in range(0,len(substrings)):
-    #         output_array.append(outputs)
-    #     for entry in pool.map(find_substring_occurrence,substrings,output_array):
-    #         outputs = dict(outputs, **entry)
-
-    #    with terminating(Pool(processes=8)) as pool:
-    #    key_array = []
-    #    for _ in range(0, len(substrings)):
-    #        key_array.append(outputs.keys())
-    #    for entry in pool.map(find_substring_occurrence, substrings, key_array):
-    #        outputs = dict(outputs, **entry)
-
-    #    with file(frequency_filename, "w") as f:
-    #        for key in outputs:
-    #            f.write(key + " " + str(outputs[key]) + "\n")
-
-    # print substrings_split[0]
-
-
     print ("Starting frequency analysis")
 
     iterations = 0
@@ -928,7 +1007,6 @@ def exhaust_substring_freq(substring_length=5):
 
         iterations += 1
 
-#        print ("%d substrings learned" % (split_val*iterations))
 
 
 def find_substring_coverage(substring_length=5):
@@ -1039,17 +1117,25 @@ def find_substring_coverage(substring_length=5):
 
 
 if __name__ == '__main__':
-#    Learn_Engine.generate_list_strings()
+    learn = Base_Implementation()
+    learn.base_percentages_generate("./imp/package_no_comments.txt")
+#    print learn.replace_list
+
+    print learn.synonyms
 #     generate_substring_input()
 #    calculate_string_probability_for_target(["GRM185D70J475ME11D"])
 #    print calculate_string_probability_for_target("XC3S50AN-4TQG144I")
-     test_ai_against_data()
-#     compress_substring_files()
-#     find_substring_coverage()
-#     exhaust_substring_freq()
+    test_ai_against_data(synonyms=learn.synonyms)
+
+    #MCUR> {'VQFN': 3}
+
+#    compress_substring_files(synonyms=learn.synonyms,replace_list=learn.replace_list)
+    #find_substring_coverage()
+    #exhaust_substring_freq()
 
 
 
-
+# Correct: 88299. Incorrect: 3989. Insufficient data: 2077
+# Correct: 93.57%. Incorrect: 4.23%. Insufficient data: 2.20%
 
 
