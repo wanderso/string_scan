@@ -738,6 +738,11 @@ class StringProbabilityDeep:
         else:
             return (None)
 
+    def round_factor(self):
+        if self.factor is not None:
+            return round(self.factor, 1)
+        return None
+
 
 def test_ai_against_data(synonyms=None,substring_length=5):
 
@@ -829,6 +834,12 @@ def test_ai_against_data(synonyms=None,substring_length=5):
     runner_up = 0.0
     best_guess = 0.0
 
+    correct_avg = 0.0
+    incorrect_avg = 0.0
+
+    correct_factors = 0
+    incorrect_factors = 0
+
 
     print (synonyms)
 
@@ -838,13 +849,25 @@ def test_ai_against_data(synonyms=None,substring_length=5):
         actual_category = test_data_dict[target]
         if new_val == actual_category:
             correct_answers += 1
+            if data.factor:
+                correct_avg += data.factor
+                #print (data.factor)
+                correct_factors += 1
         elif synonyms and actual_category in synonyms and new_val in synonyms[actual_category]:
             correct_answers += 1
+            if data.factor:
+                #print (data.factor)
+                correct_avg += data.factor
+                correct_factors += 1
         elif new_val is not None:
             incorrect_answers += 1
             incorrect_list.append((target, new_val, actual_category))
             if data.runner_up == actual_category:
                 runner_up += 1
+            if data.factor:
+                incorrect_avg += data.factor
+                incorrect_factors += 1
+
         else:
             null_answers += 1
             null_list.append((target, new_val, actual_category))
@@ -867,6 +890,11 @@ def test_ai_against_data(synonyms=None,substring_length=5):
     print ("For incorrect data, runner-up accurate in: %.2f%%." % (100*runner_up/incorrect_answers))
 
     print ("For insufficient data, best guess accurate in: %.2f%%." % (100 * best_guess / null_answers))
+
+    print ("Average factor for correct data: %f." % (correct_avg/correct_factors))
+
+    print ("Average factor for incorrect data: %f." % (incorrect_avg/incorrect_factors))
+
 
 
     incorrect_filename = "./meta/incorrect_substring_len_" + str(substring_length) + ".txt"
