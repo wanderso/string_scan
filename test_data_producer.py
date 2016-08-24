@@ -699,33 +699,44 @@ def calculate_string_probability_for_target(input_list):
                         new_factor = 0.1
                     category_possibilities[category] = category_possibilities[category] * (new_factor / float(total_frequency_dict[entry]))
 
-
-        if total_flag in category_possibilities:
-            print ("Total flag here")
-
   #      print category_possibilities
+        output_list.append((string,category_possibilities))
 
-    #    return category_possibilities
+    return output_list
 
+class StringProbabilityDeep:
+    def __init__(self,categories):
+        self.category_possibilities = categories
+        self.factor = None
+        self.target = None
+        self.runner_up = None
+
+
+
+    def process_string_probability(self):
         top_num = 0.0
         second_num = 0.0
         top_num_category = None
 
-        for entry in category_possibilities:
-            if category_possibilities[entry] >= top_num:
+        for entry in self.category_possibilities:
+            if self.category_possibilities[entry] >= top_num:
+                self.runner_up = self.target
                 second_num = top_num
                 top_num_category = entry
-                top_num = category_possibilities[entry]
-            elif category_possibilities[entry] >= second_num:
-                second_num = category_possibilities[entry]
+                self.target = entry
+                top_num = self.category_possibilities[entry]
+            elif self.category_possibilities[entry] >= second_num:
+                second_num = self.category_possibilities[entry]
+
+
+        if second_num:
+            self.factor = top_num/second_num
 
         if top_num > (second_num * 2.5):
-            output_list.append((string, top_num_category))
+            return (top_num_category)
 
         else:
-            output_list.append((string, None))
-
-    return output_list
+            return (None)
 
 
 def test_ai_against_data(synonyms=None,substring_length=5):
@@ -807,38 +818,56 @@ def test_ai_against_data(synonyms=None,substring_length=5):
 
    # test_data = calculate_string_probability_for_target(test_list)
 
-    fnsh = time.time()
+    fnsh_testing = time.time()
 
 
-    print ("Exiting test data phase after %d seconds" % (fnsh-strt))
+    print ("Exiting test data phase after %d seconds" % (fnsh_testing-strt))
 
     incorrect_list = []
     null_list = []
 
+    runner_up = 0.0
+    best_guess = 0.0
+
+
     print (synonyms)
 
     for (target, value) in test_data:
-#        print (target,value,test_data_dict[target])
-#        print value == test_data_dict[target]
-        if value == test_data_dict[target]:
+        data = StringProbabilityDeep(value)
+        new_val = data.process_string_probability()
+        actual_category = test_data_dict[target]
+        if new_val == actual_category:
             correct_answers += 1
-        elif synonyms and test_data_dict[target] in synonyms and value in synonyms[test_data_dict[target]]:
-#            print "I am here"
+        elif synonyms and actual_category in synonyms and new_val in synonyms[actual_category]:
             correct_answers += 1
-        elif value is not None:
-#            print target
+        elif new_val is not None:
             incorrect_answers += 1
-            incorrect_list.append((target, value, test_data_dict[target]))
+            incorrect_list.append((target, new_val, actual_category))
+            if data.runner_up == actual_category:
+                runner_up += 1
         else:
             null_answers += 1
-            null_list.append((target, value, test_data_dict[target]))
+            null_list.append((target, new_val, actual_category))
+            if data.target == actual_category:
+                best_guess += 1
+
 
 
     total_runs = float(len(test_data))
 
+    fnsh = time.time()
+
+    print ("Processed %d tests in %d seconds" % (len(test_data),fnsh-fnsh_testing))
+
+
     print ("Correct: %d. Incorrect: %d. Insufficient data: %d" % (correct_answers, incorrect_answers, null_answers))
 
     print ("Correct: %.2f%%. Incorrect: %.2f%%. Insufficient data: %.2f%%" % (100*correct_answers/total_runs, 100*incorrect_answers/total_runs, 100*null_answers/total_runs))
+
+    print ("For incorrect data, runner-up accurate in: %.2f%%." % (100*runner_up/incorrect_answers))
+
+    print ("For insufficient data, best guess accurate in: %.2f%%." % (100 * best_guess / null_answers))
+
 
     incorrect_filename = "./meta/incorrect_substring_len_" + str(substring_length) + ".txt"
     null_filename = "./meta/null_substring_len_" + str(substring_length) + ".txt"
