@@ -670,10 +670,6 @@ def calculate_string_probability_for_target(input_list):
                     target_items_in_category[category] = substring_frequency_dict[entry][category]
                     total_items_in_category += substring_frequency_dict[entry][category]
                     total_frequency_dict[entry] = total_items_in_category
-                #substrings_in_dictionary.append(substring_frequency_dict[entry])
-    #            category_possibilities[entry]
-                #percentage = (float(target_items_in_category[target]) / float(total_items_in_category))
-                #print ("For string %s, %f probability across %d appearances" % (entry, percentage, total_items_in_category))
 
         # How to make the approximation algorithm?
         # Should return a number between 0 and 1 to indicate probability fitness
@@ -681,13 +677,6 @@ def calculate_string_probability_for_target(input_list):
         # Floor? Not for start
 
         #Super-naive version:
-
-    #    category_probability_dict = {}
-
-    #    for entry in category_possibilities.keys():
-    #        category_probability_dict[entry] = 1.0
-
-    #    print substrings_in_dictionary.keys()
 
         for entry in substrings_in_input:
             if entry in substring_frequency_dict:
@@ -699,7 +688,6 @@ def calculate_string_probability_for_target(input_list):
                         new_factor = 0.1
                     category_possibilities[category] = category_possibilities[category] * (new_factor / float(total_frequency_dict[entry]))
 
-  #      print category_possibilities
         output_list.append((string,category_possibilities))
 
     return output_list
@@ -711,7 +699,8 @@ class StringProbabilityDeep:
         self.target = None
         self.runner_up = None
 
-
+    def get_target(self):
+        return self.target
 
     def process_string_probability(self):
         top_num = 0.0
@@ -728,15 +717,13 @@ class StringProbabilityDeep:
             elif self.category_possibilities[entry] >= second_num:
                 second_num = self.category_possibilities[entry]
 
-
         if second_num:
             self.factor = top_num/second_num
 
         if top_num > (second_num * 2.5):
-            return (top_num_category)
-
+            return top_num_category
         else:
-            return (None)
+            return None
 
     def round_factor(self):
         if self.factor is not None:
@@ -769,10 +756,6 @@ def test_ai_against_data(synonyms=None,substring_length=5):
 
     print (int_lines)
 
-
-    #target = random.choice(test_data_dict.keys())
-    #print ("Testing: %s - actual category %s: " % (target, test_data_dict[target]))
-
     test_cycle = 100000
 
     correct_answers = 0
@@ -800,28 +783,16 @@ def test_ai_against_data(synonyms=None,substring_length=5):
 
     ck_list = split_list(test_list, 8)
 
-    #    output = []
-    #    output = get_substring_dict(check_substring_targets)
-
-
-    #    for entry in ck_list:
-    #        print len(entry)
-
     print ("Entering test data phase")
 
     strt = time.time()
 
     test_data = []
-#    for _ in range(0, len(ck_list)):
-#        key_array.append(substring_frequency_dict.keys())
-
 
     for entry in pool.map(calculate_string_probability_for_target, ck_list):
         test_data.extend(entry)
 
 
-
-   # test_data = calculate_string_probability_for_target(test_list)
 
     fnsh_testing = time.time()
 
@@ -874,14 +845,11 @@ def test_ai_against_data(synonyms=None,substring_length=5):
             if data.target == actual_category:
                 best_guess += 1
 
-
-
     total_runs = float(len(test_data))
 
     fnsh = time.time()
 
     print ("Processed %d tests in %d seconds" % (len(test_data),fnsh-fnsh_testing))
-
 
     print ("Correct: %d. Incorrect: %d. Insufficient data: %d" % (correct_answers, incorrect_answers, null_answers))
 
@@ -894,8 +862,6 @@ def test_ai_against_data(synonyms=None,substring_length=5):
     print ("Average factor for correct data: %f." % (correct_avg/correct_factors))
 
     print ("Average factor for incorrect data: %f." % (incorrect_avg/incorrect_factors))
-
-
 
     incorrect_filename = "./meta/incorrect_substring_len_" + str(substring_length) + ".txt"
     null_filename = "./meta/null_substring_len_" + str(substring_length) + ".txt"
@@ -1184,7 +1150,8 @@ if __name__ == '__main__':
 #    print calculate_string_probability_for_target("XC3S50AN-4TQG144I")
     test_ai_against_data(synonyms=learn.synonyms)
 
-    #MCUR> {'VQFN': 3}
+    print calculate_string_probability_for_target(["P100KLCT-ND"])
+
 
 #    compress_substring_files(synonyms=learn.synonyms,replace_list=learn.replace_list)
     #find_substring_coverage()
@@ -1192,7 +1159,5 @@ if __name__ == '__main__':
 
 
 
-# Correct: 88299. Incorrect: 3989. Insufficient data: 2077
-# Correct: 93.57%. Incorrect: 4.23%. Insufficient data: 2.20%
 
 
