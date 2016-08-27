@@ -1,5 +1,6 @@
 import test_data_producer
 import openpyxl
+import pandas as pd
 
 def parse_file(filename):
     wb = openpyxl.load_workbook(filename)
@@ -23,5 +24,23 @@ def parse_file(filename):
         SP = test_data_producer.StringProbabilityDeep(entry[1])
         print(entry[0], SP.process_string_probability())
 
+def parse_file_pandas(filename):
+    wb = pd.read_excel(filename)
+    for entry in wb.columns:
+        if "(MPN)" in entry:
+            column_target = entry
+
+    part_list = []
+    for entry in wb[column_target]:
+        if entry == 'DNP':
+            continue
+        part_list.append(entry)
+
+    for entry in test_data_producer.calculate_string_probability_for_target(part_list):
+        SP = test_data_producer.StringProbabilityDeep(entry[1])
+        print(entry[0], SP.process_string_probability())
+
+
 if __name__ == '__main__':
-    parse_file("./bom/bom1.xlsx")
+#    parse_file("./bom/bom1.xlsx")
+    parse_file_pandas("./bom/bom1.xlsx")

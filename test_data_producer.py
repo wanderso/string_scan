@@ -1,20 +1,9 @@
 import random
-import re
 import os
 import time
 import ast
+import glob
 from pathos.multiprocessing import ProcessingPool as Pool
-
-
-#from contextlib import contextmanager
-
-#@contextmanager
-#def terminating(thing):
-#    try:
-#        yield thing
-#    finally:
-#        thing.terminate()
-
 
 class Base_Implementation:
 
@@ -39,35 +28,11 @@ class Base_Implementation:
                     if m[1]:
                         syn1 = m[0].strip()
                         syn2 = m[1].strip()
-
-                        #relationship_introduced_1 = False
-                        #relationship_introduced_2 = False
-
-
-                        #for entry in self.synonyms:
-                            #if syn1 in self.synonyms[entry]:
-                                #self.synonyms[entry].append(syn2)
-                                #relationship_introduced_1 = True
-                                #for sub_entry in self.synonyms[entry]:
-#                                    if sub_entry in self.synonyms:
- #                                       self.synonyms[sub_entry].append(syn1)
-  #                          elif syn2 in self.synonyms[entry]:
-  #                              self.synonyms[entry].append(syn1)
-   #                             relationship_introduced_2 = True
-   #                             for sub_entry in self.synonyms[entry]:
-    #                                if sub_entry in self.synonyms:
-     #                                   self.synonyms[sub_entry].append(syn1)
-
-      #                  if not relationship_introduced_1:
-        #                    self.synonyms[syn1] = [syn2]
-       #                 if not relationship_introduced_2:
-         #                   self.synonyms[syn2] = [syn1]
                         self.replace_list.append((syn1, syn2))
 
         for entry in self.replace_list:
             syn1 = entry[0]
             syn2 = entry[1]
- #           print (syn1, syn2)
 
             key_list_1 = []
             key_list_2 = []
@@ -78,7 +43,6 @@ class Base_Implementation:
             else:
                 for key in self.synonyms[syn1]:
                     self.synonyms[key].append(syn2)
-#                    print "Recursiveappend: %s, %s, %s" % (key, syn1, syn2)
                     key_list_1.append(key)
                 self.synonyms[syn1].append(syn2)
             if syn2 not in self.synonyms:
@@ -86,7 +50,6 @@ class Base_Implementation:
             else:
                 for key in self.synonyms[syn2]:
                     self.synonyms[key].append(syn1)
-#                    print "Recursiveappend: %s, %s, %s" % (key, syn2, syn1)
                     key_list_2.append(key)
                 self.synonyms[syn2].append(syn1)
 
@@ -178,7 +141,6 @@ class Learn_Engine:
 
 
 
-#GLOBAL_SUBSTRINGS = {}
 
 def find_substring_occurrence_nocheck(substrings):
     GLOBAL_SUBSTRINGS = {}
@@ -196,18 +158,15 @@ def find_substring_occurrence_nocheck(substrings):
 
 def find_substring_occurrence(substrings,existing_keys):
     GLOBAL_SUBSTRINGS = {}
-    walkover = 0
     filename = "./imp/learn_strings_only.txt"
     with file(filename, "rb") as f:
         megabytes = f.read()
         file_lines = megabytes.split('\n')
         for entry in substrings:
             if entry in existing_keys:
-                walkover += 1
                 continue
             result = megabytes.count(entry)
             GLOBAL_SUBSTRINGS[entry] = result
-   # print ("Walkovers: %d" % walkover)
     return GLOBAL_SUBSTRINGS
 
 
@@ -222,14 +181,9 @@ def get_random_substring(substring_len, num=200):
             ran_point = random.randrange(dist)
             f.seek(ran_point, 0)
             value = f.read(1)
-
-#                print (value)
-#                print (f.read(10))
-
             if value == " ":
                 continue
             else:
-                #print ("%s" % value)
                 left_char = value
                 right_char = value
                 left_point = ran_point
@@ -239,33 +193,24 @@ def get_random_substring(substring_len, num=200):
                     direction = 0
                     move_right = (left_char  == '<')
                     move_left = (right_char == '>')
-                   # print (left_char,right_char,move_left,move_right)
 
                     if move_left and move_right:
                         direction = 0
-                   #     print ("String blanked")
                     elif move_left:
                         direction = -1
-#                            print ("Must move left")
                     elif move_right:
                         direction = 1
-#                            print ("Must move right")
                     else:
                         direction = random.randrange(-1,2,2) # randomnly selects -1 or 1
 
-
                     if direction == 1:
-#                            print ("Move right")
                         right_point += 1
                         f.seek(right_point,0)
                         right_char = f.read(1)
-#                            print ("right_char " + right_char)
                     elif direction == -1:
-#                            print ("Move left")
                         left_point -= 1
                         f.seek(left_point,0)
                         left_char = f.read(1)
-#                            print ("left_char " + left_char)
                     else:
                         current_len -= 1
                         break
@@ -274,7 +219,7 @@ def get_random_substring(substring_len, num=200):
                 substrings.append(substring)
     return substrings
 
-def get_substring_dict(substrings, existing_keys):
+def get_substring_dict(substrings):
     filename = "./imp/learn_uniq.txt"
     substring_dict_list = {}
     walkover = 0
@@ -319,7 +264,7 @@ def split_list(list_in, num):
 #    print("In split list %d, %d, %d " % (num, split_val, ((num) * split_val)))
     return ret_list
 
-def generate_substring_input():
+def generate_substring_input(substring_length=5):
     naive = Base_Implementation()
     learn = Learn_Engine()
 
@@ -330,7 +275,6 @@ def generate_substring_input():
     strt_time = time.time()
     print ("Starting process at %d" % strt_time)
 
-    substring_length = 5
     substrings = []
 
     frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
@@ -404,9 +348,6 @@ def generate_substring_input():
 
     for target_list in substrings_split:
 
-
-
-
         ck_list = split_list(target_list, 8)
 
         new_frequency_dict = {}
@@ -420,7 +361,6 @@ def generate_substring_input():
         with file(frequency_filename, "a") as f:
             for key in new_frequency_dict:
                 f.write(key + " " + str(new_frequency_dict[key]) + "\n")
-
 
     learn_finish_time = time.time()
 
@@ -438,8 +378,6 @@ def generate_substring_input():
                     b = line[substring_length+1:]
                     substring_frequency_dict[a] = ast.literal_eval(b)
 
-    #print (substring_frequency_dict.keys())
-
     existing_substring_load_dict = len(substring_frequency_dict)
 
     print ("Length of existing substring load dictionary - %d" % existing_substring_load_dict)
@@ -450,10 +388,6 @@ def generate_substring_input():
             counts[outputs[key]] += 1
         else:
             counts[outputs[key]] = 1
-
-    #print counts
-
-    #print counts.keys().sort(key=int)
 
     sorted_key_list = counts.keys()
 
@@ -468,8 +402,6 @@ def generate_substring_input():
         total += counts[key]
         if total > target:
             list_targets.append(key)
-
-    #print list_targets
 
     print ("Targeting all entries >= %d" % list_targets[0])
 
@@ -486,7 +418,6 @@ def generate_substring_input():
         if entry not in substring_frequency_dict:
             new_substring_targets.append(entry)
 
-
     new_substring_targets_split = []
 
     split_val = 1000
@@ -497,36 +428,24 @@ def generate_substring_input():
     else:
         new_substring_targets_split = [new_substring_targets]
 
-
-
     for target_list in new_substring_targets_split:
-
 
         ck_list = split_list(target_list, 8)
 
         new_frequency_dict = {}
 
-        key_array = []
-        for _ in range(0, len(ck_list)):
-            key_array.append(substring_frequency_dict.keys())
-        for entry in pool.map(get_substring_dict, ck_list, key_array):
+        for entry in pool.map(get_substring_dict, ck_list):
             new_frequency_dict = dict(new_frequency_dict, **entry)
 
         with file(substring_frequency_savename, "a") as f:
             for key in new_frequency_dict:
                 f.write(key + " " + str(new_frequency_dict[key]) + "\n")
 
-
-
-    #substring_frequency_dict = dict(substring_frequency_dict, **new_frequency_dict)
-
     substring_dict_time = time.time()
-    #    print substring_frequency_dict
 
     print ("Learned %d substrings in - %d" % (len(new_frequency_dict), (substring_dict_time - learn_finish_time)))
 
     finish_time = time.time()
-#    print ("Wrote %d substrings to disk in - %d" % (len(substring_frequency_dict), (finish_time - substring_dict_time)))
 
     print ("Total time - %d" % (finish_time - strt_time))
 
@@ -607,7 +526,7 @@ def compress_substring_files(synonyms=None, substring_length=5, replace_list=[])
 
 
 
-def calculate_string_probability_for_target(input_list):
+def calculate_string_probability_for_target(input_list,substring_length=5):
     # Chain rule - P(A,B) = P(B|A)P(A)
     #            - P(A,B,C,D) = P(D|A,B,C)P(C|A,B)P(B|A)P(A)
 
@@ -626,7 +545,6 @@ def calculate_string_probability_for_target(input_list):
 
 
 
-    substring_length = 5
 
     substring_frequency_savename = "./runs/substring_len_" + str(substring_length) + "_dictionary.txt"
     substring_frequency_dict = {}
@@ -651,7 +569,7 @@ def calculate_string_probability_for_target(input_list):
         substrings_in_input = []
 
         for i in range(0, (len(string_anchored)-substring_length+1),1):
-            substrings_in_input.append(string_anchored[i:i+5])
+            substrings_in_input.append(string_anchored[i:i+substring_length])
 
      #   print substrings_in_input
 
@@ -680,6 +598,7 @@ def calculate_string_probability_for_target(input_list):
 
         for entry in substrings_in_input:
             if entry in substring_frequency_dict:
+              #  print substrings_in_dictionary[entry]
                 for category in category_possibilities:
                     current_prob = category_possibilities[category]
                     if category in substrings_in_dictionary[entry]:
@@ -731,9 +650,11 @@ class StringProbabilityDeep:
         return None
 
 
-def test_ai_against_data(synonyms=None,substring_length=5):
+def test_ai_against_data(synonyms=None,substring_length=5,use_stored_data=False):
 
     testdata = "./imp/test_uniq.txt"
+
+    stored_data_filename = "./saves/len" + str(substring_length) + "_testdata_"
 
     test_data_dict = {}
 
@@ -754,8 +675,6 @@ def test_ai_against_data(synonyms=None,substring_length=5):
                 print ("Error!")
                 pass
 
-    print (int_lines)
-
     test_cycle = 100000
 
     correct_answers = 0
@@ -763,11 +682,6 @@ def test_ai_against_data(synonyms=None,substring_length=5):
     incorrect_answers = 0
 
     test_list = []
-
-
-    print ("Finding random keys")
-
-
 
     key_values = test_data_dict.keys()
 
@@ -777,11 +691,12 @@ def test_ai_against_data(synonyms=None,substring_length=5):
 
     test_list = key_values
 
-    print (len(key_values))
+    print ("Found %d keys" % len(key_values))
 
     pool = Pool(processes=8)
 
     ck_list = split_list(test_list, 8)
+    arg_list = []
 
     print ("Entering test data phase")
 
@@ -789,12 +704,43 @@ def test_ai_against_data(synonyms=None,substring_length=5):
 
     test_data = []
 
-    for entry in pool.map(calculate_string_probability_for_target, ck_list):
-        test_data.extend(entry)
+    if use_stored_data:
+        for filename in glob.glob(stored_data_filename + "*.txt"):
+            with file(filename,"r") as f:
+                for line in f:
+                    test_data.append(ast.literal_eval(line))
+
+    else:
+#        print len(ck_list)
+#        print len(ck_list[0])
+
+        arg_list = [ck_list]
+        total_entries = 0
+
+        for entry in ck_list:
+            total_entries += len(entry)
+        arg_list.append([substring_length]*total_entries)
+        for entry in pool.map(calculate_string_probability_for_target, *arg_list):
+            test_data.extend(entry)
 
 
 
     fnsh_testing = time.time()
+
+    if not use_stored_data:
+
+        split_on_val = 1000
+
+
+
+        write_data = split_list(test_data,(len(test_data)/split_on_val))
+
+        index = 0
+        for entry in write_data:
+            index += 1
+            with file(stored_data_filename+str(index)+".txt","w") as f:
+                for value in entry:
+                    f.write(str(value)+"\n")
 
 
     print ("Exiting test data phase after %d seconds" % (fnsh_testing-strt))
@@ -954,7 +900,7 @@ def exhaust_substring_freq(substring_length=5):
         substrings_in_input = []
 
         for i in range(0, (len(string_anchored) - substring_length + 1), 1):
-            substrings_in_input.append(string_anchored[i:i + 5])
+            substrings_in_input.append(string_anchored[i:i + substring_length])
 
         for entry in substrings_in_input:
             if entry in all_substring_dict:
@@ -1097,7 +1043,7 @@ def find_substring_coverage(substring_length=5):
         substrings_in_input = []
 
         for i in range(0, (len(string_anchored) - substring_length + 1), 1):
-            substrings_in_input.append(string_anchored[i:i + 5])
+            substrings_in_input.append(string_anchored[i:i + substring_length])
 
         for entry in substrings_in_input:
             if entry in all_substring_dict:
@@ -1144,18 +1090,41 @@ if __name__ == '__main__':
     learn.base_percentages_generate("./imp/package_no_comments.txt")
 #    print learn.replace_list
 
-    print learn.synonyms
-#     generate_substring_input()
+    #print learn.synonyms
+    #generate_substring_input(substring_length=6)
 #    calculate_string_probability_for_target(["GRM185D70J475ME11D"])
 #    print calculate_string_probability_for_target("XC3S50AN-4TQG144I")
-    test_ai_against_data(synonyms=learn.synonyms)
+    test_ai_against_data(synonyms=learn.synonyms,substring_length=4)
+    test_ai_against_data(synonyms=learn.synonyms,substring_length=5)
+    test_ai_against_data(synonyms=learn.synonyms,substring_length=6)
 
-    print calculate_string_probability_for_target(["P100KLCT-ND"])
+    #print calculate_string_probability_for_target(["BSS84PH6327XTSA2"])
 
 
 #    compress_substring_files(synonyms=learn.synonyms,replace_list=learn.replace_list)
-    #find_substring_coverage()
-    #exhaust_substring_freq()
+#    length = 6
+
+#    find_substring_coverage(substring_length=length)
+#    exhaust_substring_freq(substring_length=length)
+#    generate_substring_input(substring_length=length)
+#    find_substring_coverage(substring_length=length)
+
+#    length = 4
+
+#    find_substring_coverage(substring_length=length)
+#    exhaust_substring_freq(substring_length=length)
+#    generate_substring_input(substring_length=length)
+#    find_substring_coverage(substring_length=length)
+
+#    length = 3
+
+#    find_substring_coverage(substring_length=length)
+#    exhaust_substring_freq(substring_length=length)
+#    generate_substring_input(substring_length=length)
+#    find_substring_coverage(substring_length=length)
+
+
+
 
 
 
