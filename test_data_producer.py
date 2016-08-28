@@ -322,26 +322,6 @@ def generate_substring_input(substring_length=5):
 
     pool = Pool(processes=8)
 
-    # with terminating(Pool(processes=8)) as pool:
-    #     output_array = []
-    #     for _ in range(0,len(substrings)):
-    #         output_array.append(outputs)
-    #     for entry in pool.map(find_substring_occurrence,substrings,output_array):
-    #         outputs = dict(outputs, **entry)
-
-    #    with terminating(Pool(processes=8)) as pool:
-#    key_array = []
-#    for _ in range(0, len(substrings)):
-#        key_array.append(outputs.keys())
-#    for entry in pool.map(find_substring_occurrence, substrings, key_array):
-#        outputs = dict(outputs, **entry)
-
-#    with file(frequency_filename, "w") as f:
-#        for key in outputs:
-#            f.write(key + " " + str(outputs[key]) + "\n")
-
-    #print substrings_split[0]
-
     start_substring_pool_time = time.time()
 
     print ("Starting frequency analysis")
@@ -663,16 +643,12 @@ def test_ai_against_data(synonyms=None,substring_length=5,use_stored_data=False)
     int_lines = 0
 
     with file(testdata, "r") as f:
-#        pattern = re.compile('^([\w,-/\\\\+\(\):#%\$&;\'\*\s]+) ([^\n]+)\n$')
         for line in f:
             int_lines += 1
-            #m = pattern.match(line)
             m = line.rsplit(' ', 1)
             if m[1]:
                 test_data_dict[m[0]] = m[1].strip("\n")
             else:
-#                print line
-                print ("Error!")
                 pass
 
     test_cycle = 100000
@@ -768,12 +744,10 @@ def test_ai_against_data(synonyms=None,substring_length=5,use_stored_data=False)
             correct_answers += 1
             if data.factor:
                 correct_avg += data.factor
-                #print (data.factor)
                 correct_factors += 1
         elif synonyms and actual_category in synonyms and new_val in synonyms[actual_category]:
             correct_answers += 1
             if data.factor:
-                #print (data.factor)
                 correct_avg += data.factor
                 correct_factors += 1
         elif new_val is not None:
@@ -1083,7 +1057,9 @@ def find_substring_coverage(substring_length=5):
 
 
 
-
+class Genome:
+    def __init__(self):
+        pass
 
 if __name__ == '__main__':
     learn = Base_Implementation()
@@ -1094,6 +1070,7 @@ if __name__ == '__main__':
     #generate_substring_input(substring_length=6)
 #    calculate_string_probability_for_target(["GRM185D70J475ME11D"])
 #    print calculate_string_probability_for_target("XC3S50AN-4TQG144I")
+    test_ai_against_data(synonyms=learn.synonyms,substring_length=3)
     test_ai_against_data(synonyms=learn.synonyms,substring_length=4)
     test_ai_against_data(synonyms=learn.synonyms,substring_length=5)
     test_ai_against_data(synonyms=learn.synonyms,substring_length=6)
