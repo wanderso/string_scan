@@ -3,7 +3,14 @@ import os
 import time
 import ast
 import glob
+import numpy
 from pathos.multiprocessing import ProcessingPool as Pool
+
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = numpy.exp(x - numpy.max(x))
+    return e_x / e_x.sum(axis=0)
+
 
 class Base_Implementation:
 
@@ -505,6 +512,34 @@ def compress_substring_files(synonyms=None, substring_length=5, replace_list=[])
     print ("It is now safe to shut down the process")
 
 
+def most_common_substrings(substring_length=5, substrings_to_print_num=10):
+    # <9T06
+    frequency_filename = "./runs/substring_len_" + str(substring_length) + "_frequency.txt"
+
+    substring_frequency_lines = 0
+    substring_frequency = {}
+
+    if os.path.isfile(frequency_filename):
+        with file(frequency_filename, "r") as f:
+            for line in f:
+                if line:
+                    substring_frequency_lines += 1
+                m = line.rsplit(' ', 1)
+                if m[1]:
+                    substring_frequency[m[0]] = int(m[1])
+
+    print("%d lines in %s - %d unique keys" %(substring_frequency_lines,frequency_filename,len(substring_frequency)))
+
+    lines_printed = 0
+
+    for w in sorted(substring_frequency, key=substring_frequency.get, reverse=True):
+        if substrings_to_print_num:
+            if lines_printed < substrings_to_print_num:
+                lines_printed += 1
+            else:
+                break
+        print w, substring_frequency[w]
+
 
 def calculate_string_probability_for_target(input_list,substring_length=5):
     # Chain rule - P(A,B) = P(B|A)P(A)
@@ -523,21 +558,28 @@ def calculate_string_probability_for_target(input_list,substring_length=5):
 
     total_flag = "__TOTAL__><"
 
+    substrings_search = []
+    substrings_search.append(substring_length)
 
-
-
-    substring_frequency_savename = "./runs/substring_len_" + str(substring_length) + "_dictionary.txt"
     substring_frequency_dict = {}
-
     total_frequency_dict = {}
 
-    if os.path.isfile(substring_frequency_savename):
-        with file(substring_frequency_savename, "r") as f:
-            for line in f:
-                if line:
-                    a = line[:substring_length]
-                    b = line[substring_length + 1:]
-                    substring_frequency_dict[a] = ast.literal_eval(b)
+
+
+
+
+    for j in substrings_search:
+        substring_frequency_savename = "./runs/substring_len_" + str(j) + "_dictionary.txt"
+
+
+
+        if os.path.isfile(substring_frequency_savename):
+            with file(substring_frequency_savename, "r") as f:
+                for line in f:
+                    if line:
+                        a = line[:j]
+                        b = line[j + 1:]
+                        substring_frequency_dict[a] = ast.literal_eval(b)
 
     output_list = []
 
@@ -548,17 +590,15 @@ def calculate_string_probability_for_target(input_list,substring_length=5):
 
         substrings_in_input = []
 
-        for i in range(0, (len(string_anchored)-substring_length+1),1):
-            substrings_in_input.append(string_anchored[i:i+substring_length])
-
-     #   print substrings_in_input
+        for j in substrings_search:
+            for i in range(0, (len(string_anchored)-j+1),1):
+                substrings_in_input.append(string_anchored[i:i+j])
 
         substrings_in_dictionary = {}
         category_possibilities = {}
 
         for entry in substrings_in_input:
             if entry in substring_frequency_dict:
-                #print substring_frequency_dict[entry]
                 total_items_in_category = 0
                 target_items_in_category = {}
                 substrings_in_dictionary[entry] = substring_frequency_dict[entry]
@@ -1056,6 +1096,19 @@ def find_substring_coverage(substring_length=5):
     print ("In dict: %.2f%%. In freq: %.2f%%." % (100*float(substrings_in_dict)/float(total_substrings), 100*float(substrings_in_freq)/float(total_substrings)))
 
 
+def sort_file(filename):
+    file_lines = []
+    if os.path.isfile(filename):
+        with file(filename, "r") as f:
+            for line in f:
+                file_lines.append(line)
+
+    file_lines.sort()
+
+    with file(filename, "w") as f:
+        for entry in file_lines:
+            f.write(entry)
+
 
 class Genome:
     def __init__(self):
@@ -1064,18 +1117,55 @@ class Genome:
 if __name__ == '__main__':
     learn = Base_Implementation()
     learn.base_percentages_generate("./imp/package_no_comments.txt")
+
+ #   most_common_substrings(substring_length=9,substrings_to_print_num=50)
+
 #    print learn.replace_list
 
     #print learn.synonyms
     #generate_substring_input(substring_length=6)
 #    calculate_string_probability_for_target(["GRM185D70J475ME11D"])
 #    print calculate_string_probability_for_target("XC3S50AN-4TQG144I")
-    test_ai_against_data(synonyms=learn.synonyms,substring_length=3)
-    test_ai_against_data(synonyms=learn.synonyms,substring_length=4)
-    test_ai_against_data(synonyms=learn.synonyms,substring_length=5)
-    test_ai_against_data(synonyms=learn.synonyms,substring_length=6)
+#    test_ai_against_data(synonyms=learn.synonyms,substring_length=3)
+#    test_ai_against_data(synonyms=learn.synonyms,substring_length=4)
+#    test_ai_against_data(synonyms=learn.synonyms,substring_length=5)
+#    test_ai_against_data(synonyms=learn.synonyms,substring_length=6)
+
+
+    scores = numpy.array([1,2,3,4])
+
+
+    print (scores)
+    print (softmax(scores))
+
+    scores = numpy.array([.25, .5, .75, 1])
+
+    print (scores)
+    print (softmax(scores))
+
+    scores2D_54 = numpy.array([[1, 2, 3, 6],
+                               [2, 4, 5, 6],
+                               [3, 8, 7, 6],
+                               [3, 8, 7, 6],
+                               [3, 8, 7, 6]])
+
+    scores2D_41 = numpy.array([[2],
+                               [2],
+                               [3],
+                               [8]])
+
+    print (numpy.dot(scores2D_54,scores2D_41))
+
+    print (softmax(numpy.dot(scores2D_54,scores2D_41)))
+
+
+    #print (scores2D)
+
+
+   # print(softmax(scores2D))
 
     #print calculate_string_probability_for_target(["BSS84PH6327XTSA2"])
+
 
 
 #    compress_substring_files(synonyms=learn.synonyms,replace_list=learn.replace_list)
@@ -1100,6 +1190,18 @@ if __name__ == '__main__':
 #    generate_substring_input(substring_length=length)
 #    find_substring_coverage(substring_length=length)
 
+
+#    for length in range(3,10):
+#        find_substring_coverage(substring_length=length)
+#        exhaust_substring_freq(substring_length=length)
+#        generate_substring_input(substring_length=length)
+#        find_substring_coverage(substring_length=length)
+
+#    for filename in glob.glob("./meta/*.txt"):
+#        sort_file(filename)
+
+#    for filename in glob.glob("./runs/*.txt"):
+#        sort_file(filename)
 
 
 
