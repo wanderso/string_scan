@@ -597,8 +597,11 @@ def calculate_string_probability_for_target(input_list,substring_length=5):
         substrings_in_dictionary = {}
         category_possibilities = {}
 
+        substrings_in_input_and_dict = []
+
         for entry in substrings_in_input:
             if entry in substring_frequency_dict:
+                substrings_in_input_and_dict.append(entry)
                 total_items_in_category = 0
                 target_items_in_category = {}
                 substrings_in_dictionary[entry] = substring_frequency_dict[entry]
@@ -616,18 +619,71 @@ def calculate_string_probability_for_target(input_list,substring_length=5):
 
         #Super-naive version:
 
-        for entry in substrings_in_input:
-            if entry in substring_frequency_dict:
-              #  print substrings_in_dictionary[entry]
-                for category in category_possibilities:
-                    current_prob = category_possibilities[category]
-                    if category in substrings_in_dictionary[entry]:
-                        new_factor = float(substrings_in_dictionary[entry][category])
-                    else:
-                        new_factor = 0.1
-                    category_possibilities[category] = category_possibilities[category] * (new_factor / float(total_frequency_dict[entry]))
+        # for entry in substrings_in_input_and_dict:
+        #     for category in category_possibilities:
+        #         current_prob = category_possibilities[category]
+        #         if category in substrings_in_dictionary[entry]:
+        #             new_factor = float(substrings_in_dictionary[entry][category])
+        #         else:
+        #             new_factor = 0.0001
+        #         category_possibilities[category] = category_possibilities[category] * (new_factor / float(total_frequency_dict[entry]))
+
+        #output_list.append((string,category_possibilities))
+
+        # x*y dot y*z = x*z array
+
+        # x = number of categories
+        # y = number of substrings
+        # z = 1
+
+        #does this work?
+
+        #
+
+        category_possibilities_keys = category_possibilities.keys()
+        category_possibilities_keys.sort()
+
+        array_lists = []
+        weight_lists = []
+
+
+        for category in category_possibilities_keys:
+            category_list = []
+            for entry in substrings_in_input_and_dict:
+                if category in substrings_in_dictionary[entry]:
+                    category_list.append(float(substrings_in_dictionary[entry][category]))
+                else:
+                    category_list.append(0)
+            array_lists.append(category_list)
+
+        output_array = numpy.array(array_lists)
+
+        for entry in substrings_in_input_and_dict:
+#            print substring_frequency_dict[entry]
+            total_entries = 0
+            for key in substring_frequency_dict[entry]:
+                total_entries += substring_frequency_dict[entry][key]
+            weight_lists.append([1.0/float(total_entries)])
+
+        weight_array = numpy.array(weight_lists)
+
+        #if len(input_list) == 1:
+#            print category_possibilities_keys
+#            print (output_array)
+#            print (weight_array)
+#            print numpy.dot(output_array,weight_array)
+        arr = softmax(numpy.dot(output_array,weight_array))
+#        print arr
+#        target = numpy.unravel_index(arr.argmax(), arr.shape)
+        #print category_possibilities_keys[target[0]]
+        index = 0
+        if len(category_possibilities_keys) != 0:
+            for entry in arr.flatten():
+                category_possibilities[category_possibilities_keys[index]] = entry
+                index += 1
 
         output_list.append((string,category_possibilities))
+
 
     return output_list
 
@@ -636,30 +692,31 @@ class StringProbabilityDeep:
         self.category_possibilities = categories
         self.factor = None
         self.target = None
+        self.top_num
         self.runner_up = None
 
     def get_target(self):
         return self.target
 
     def process_string_probability(self):
-        top_num = 0.0
+        self.top_num = 0.0
         second_num = 0.0
         top_num_category = None
 
         for entry in self.category_possibilities:
-            if self.category_possibilities[entry] >= top_num:
+            if self.category_possibilities[entry] >= self.top_num:
                 self.runner_up = self.target
-                second_num = top_num
+                second_num = self.top_num
                 top_num_category = entry
                 self.target = entry
-                top_num = self.category_possibilities[entry]
+                self.top_num = self.category_possibilities[entry]
             elif self.category_possibilities[entry] >= second_num:
                 second_num = self.category_possibilities[entry]
 
         if second_num:
-            self.factor = top_num/second_num
+            self.factor = self.top_num - second_num
 
-        if top_num > (second_num * 2.5):
+        if self.top_num > (second_num + 0.01):
             return top_num_category
         else:
             return None
@@ -727,9 +784,6 @@ def test_ai_against_data(synonyms=None,substring_length=5,use_stored_data=False)
                     test_data.append(ast.literal_eval(line))
 
     else:
-#        print len(ck_list)
-#        print len(ck_list[0])
-
         arg_list = [ck_list]
         total_entries = 0
 
@@ -761,6 +815,8 @@ def test_ai_against_data(synonyms=None,substring_length=5,use_stored_data=False)
 
     print ("Exiting test data phase after %d seconds" % (fnsh_testing-strt))
 
+
+    correct_list = []
     incorrect_list = []
     null_list = []
 
@@ -782,17 +838,19 @@ def test_ai_against_data(synonyms=None,substring_length=5,use_stored_data=False)
         actual_category = test_data_dict[target]
         if new_val == actual_category:
             correct_answers += 1
+            correct_list.append((target, new_val, actual_category, data.factor))
             if data.factor:
                 correct_avg += data.factor
                 correct_factors += 1
         elif synonyms and actual_category in synonyms and new_val in synonyms[actual_category]:
             correct_answers += 1
+            correct_list.append((target, new_val, actual_category, data.factor))
             if data.factor:
                 correct_avg += data.factor
                 correct_factors += 1
         elif new_val is not None:
             incorrect_answers += 1
-            incorrect_list.append((target, new_val, actual_category))
+            incorrect_list.append((target, new_val, actual_category, data.factor))
             if data.runner_up == actual_category:
                 runner_up += 1
             if data.factor:
@@ -801,7 +859,7 @@ def test_ai_against_data(synonyms=None,substring_length=5,use_stored_data=False)
 
         else:
             null_answers += 1
-            null_list.append((target, new_val, actual_category))
+            null_list.append((target, new_val, actual_category, data.factor))
             if data.target == actual_category:
                 best_guess += 1
 
@@ -823,8 +881,17 @@ def test_ai_against_data(synonyms=None,substring_length=5,use_stored_data=False)
 
     print ("Average factor for incorrect data: %f." % (incorrect_avg/incorrect_factors))
 
+    correct_filename = "./meta/correct_substring_len_" + str(substring_length) + ".txt"
     incorrect_filename = "./meta/incorrect_substring_len_" + str(substring_length) + ".txt"
     null_filename = "./meta/null_substring_len_" + str(substring_length) + ".txt"
+
+    with file(correct_filename, "w") as f:
+        for entry in correct_list:
+            string = ""
+            for value in entry:
+                string = string + " " + str(value)
+            string = string + "\n"
+            f.write(string)
 
     with file(incorrect_filename, "w") as f:
         for entry in incorrect_list:
@@ -1128,35 +1195,8 @@ if __name__ == '__main__':
 #    print calculate_string_probability_for_target("XC3S50AN-4TQG144I")
 #    test_ai_against_data(synonyms=learn.synonyms,substring_length=3)
 #    test_ai_against_data(synonyms=learn.synonyms,substring_length=4)
-#    test_ai_against_data(synonyms=learn.synonyms,substring_length=5)
+    test_ai_against_data(synonyms=learn.synonyms,substring_length=5)
 #    test_ai_against_data(synonyms=learn.synonyms,substring_length=6)
-
-
-    scores = numpy.array([1,2,3,4])
-
-
-    print (scores)
-    print (softmax(scores))
-
-    scores = numpy.array([.25, .5, .75, 1])
-
-    print (scores)
-    print (softmax(scores))
-
-    scores2D_54 = numpy.array([[1, 2, 3, 6],
-                               [2, 4, 5, 6],
-                               [3, 8, 7, 6],
-                               [3, 8, 7, 6],
-                               [3, 8, 7, 6]])
-
-    scores2D_41 = numpy.array([[2],
-                               [2],
-                               [3],
-                               [8]])
-
-    print (numpy.dot(scores2D_54,scores2D_41))
-
-    print (softmax(numpy.dot(scores2D_54,scores2D_41)))
 
 
     #print (scores2D)
@@ -1164,8 +1204,11 @@ if __name__ == '__main__':
 
    # print(softmax(scores2D))
 
-    #print calculate_string_probability_for_target(["BSS84PH6327XTSA2"])
+    calprob = calculate_string_probability_for_target(["BSS84PH6327XTSA2"])
 
+    print calprob[0]
+
+    print StringProbabilityDeep(calprob[0][1]).process_string_probability()
 
 
 #    compress_substring_files(synonyms=learn.synonyms,replace_list=learn.replace_list)

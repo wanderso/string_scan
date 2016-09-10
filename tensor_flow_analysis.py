@@ -1,14 +1,18 @@
 import tensorflow as tf
 import numpy as np
+import os
 
 substring_length = 5
 
 correct_filename = "./meta/correct_substring_len_" + str(substring_length) + ".txt"
 incorrect_filename = "./meta/incorrect_substring_len_" + str(substring_length) + ".txt"
+variables_filename = "./meta/linear_regression_len_" + str(substring_length) + ".ckpt"
 correct_list = []
 incorrect_list = []
 none_correct = 0
 none_incorrect = 0
+
+
 
 with file(correct_filename, "r") as f:
     for line in f:
@@ -48,39 +52,53 @@ y_data = np.array(y_list)
 
 
 #print x_data[:100]
+#print np.square(x_data[:100])
+
 #print y_data[:100]
 #print (len(x_data))
 
-# Try to find values for W and b that compute y_data = W * x_data + b
-# (We know that W should be 0.1 and b 0.3, but TensorFlow will
-# figure that out for us.)
 W = tf.Variable(tf.random_uniform([1], -1.0, 1.0))
+W2 = tf.Variable(tf.random_uniform([1], -1.0, 1.0))
+W3 = tf.Variable(tf.random_uniform([1], -1.0, 1.0))
 b = tf.Variable(tf.zeros([1]))
-y = W * x_data + b
+l = W3 * np.power(x_data,3)
+k = W2 * np.square(x_data)
+z = W * x_data
 
+y = tf.add_n([l,z,k]) + b
 
 # Minimize the mean squared errors.
 loss = tf.reduce_mean(tf.square(y - y_data))
-optimizer = tf.train.GradientDescentOptimizer(0.5)
+optimizer = tf.train.GradientDescentOptimizer(0.1)
 train = optimizer.minimize(loss)
 
 # Before starting, initialize the variables.  We will 'run' this first.
 init = tf.initialize_all_variables()
-
+saver = tf.train.Saver()
 # Launch the graph.
 sess = tf.Session()
 sess.run(init)
 
+if os.path.isfile(variables_filename):
+    try:
+        saver.restore(sess, variables_filename)
+        print("Model restored.")
+    except:
+        pass
+
 # Fit the line.
-for step in range(2001):
+for step in range(20001):
     sess.run(train)
 
 weight = sess.run(W)
+weight2 = sess.run(W2)
+weight3 = sess.run(W3)
 bias = sess.run(b)
 
-print "x: %f b: %f" % (weight,bias)
-print "When no other options found: confidence interval %.2f%%" % (100*float(none_correct)/float(none_correct+none_incorrect))
-#print "When confidence interval 0 - odds of success %f%%" % (100*bias)
-for i in [x / 100.0 for x in range(1, 101, 6)]:
-    print "When confidence interval %.2f - odds of success %.2f%%" % (i,100*((weight*i)+bias))
 
+print "x3: %f x2: %f x: %f b: %f" % (weight3, weight2, weight, bias)
+print "When no other options found: confidence interval %.2f%%" % (100*float(none_correct)/float(none_correct+none_incorrect))
+for i in [x / 100.0 for x in range(0, 101, 4)]:
+    print "When confidence interval %.2f - odds of success %.2f%%" % (i,100*((weight3*i*i*i)+(weight2*i*i)+(weight*i)+bias))
+
+save_path = saver.save(sess, variables_filename)
